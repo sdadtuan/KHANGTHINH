@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Video tour – Khang Thịnh Land</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#061428;color:#fff;font-family:'Be Vietnam Pro',system-ui,sans-serif}
+button,a{font-family:inherit}
+.stage{position:fixed;inset:0;overflow:hidden;background:#061428}
+.frame{position:absolute;inset:0;background:#061428 center/cover no-repeat;transform:scale(1.08);opacity:0;transition:opacity .45s}
+.frame.on{opacity:1}
+.shade{position:absolute;inset:0;background:linear-gradient(transparent 42%,rgba(6,20,40,.88));pointer-events:none}
+.top,.bot{position:absolute;left:0;right:0;z-index:2;display:flex;align-items:center;gap:12px;padding:18px 22px}
+.top{top:0;background:linear-gradient(rgba(6,20,40,.75),transparent)}
+.bot{bottom:0;flex-direction:column;align-items:stretch}
+.back,.ctl{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.1);color:#fff;border-radius:999px;padding:8px 14px;text-decoration:none;cursor:pointer}
+.back:hover,.ctl:hover{background:#C9A24B;color:#0B1F3A}
+.title{display:flex;flex-direction:column;min-width:0}
+.title b{font-size:16px}
+.title small{color:#C7D2E4;font-size:12px}
+.play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;width:74px;height:74px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.18);color:#fff;font-size:26px;cursor:pointer;backdrop-filter:blur(8px)}
+.play:hover{background:#C9A24B;color:#0B1F3A}
+.cap b{display:block;font-size:22px}
+.cap small{color:#E8C877}
+.row{display:flex;align-items:center;gap:10px;margin-top:10px}
+.bar{flex:1;height:4px;background:rgba(255,255,255,.25);border-radius:99px;overflow:hidden;cursor:pointer}
+.bar i{display:block;height:100%;width:0;background:#E8C877}
+.time{font-size:12px;color:#C7D2E4;min-width:72px;text-align:right}
+.miss{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:24px}
+.miss a{color:#E8C877}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="js/data.js"></script>
+<script src="js/tours.js"></script>
+<script>
+(function () {
+  const p = tourProject();
+  const root = document.getElementById('root');
+  if (!p) {
+    root.innerHTML = '<div class="miss"><div><p>Không tìm thấy dự án.</p><p><a href="du-an.html">Về danh sách dự án</a></p></div></div>';
+    return;
+  }
+  document.title = 'Video tour ' + p.name;
+  const rooms = tourRooms(p);
+  const SCENE = 6000;
+  const total = rooms.length * SCENE;
+  root.innerHTML = '<div class="stage" id="stage">' +
+    rooms.map((r, i) => '<div class="frame' + (i ? '' : ' on') + '" data-i="' + i + '" style="background-image:url(\'' + r.src + '\')"></div>').join('') +
+    '<div class="shade"></div><button class="play" id="playBtn" aria-label="Phát">▶</button>' +
+    '<div class="top"><a class="back" href="' + tourBack(p) + '">← Dự án</a><div class="title"><b>' + p.name + '</b><small>Video tour nhà mẫu</small></div></div>' +
+    '<div class="bot"><div class="cap"><small id="room"> </small><b id="cap"> </b></div><div class="row"><button class="ctl" id="prev" aria-label="Cảnh trước">‹</button><button class="ctl" id="toggle">Tạm dừng</button><button class="ctl" id="next" aria-label="Cảnh sau">›</button><div class="bar" id="bar"><i id="fill"></i></div><span class="time" id="time">0:00</span></div></div></div>';
+
+  const frames = [].slice.call(document.querySelectorAll('.frame'));
+  let index = 0, playing = true, acc = 0, last = performance.now(), raf = 0;
+  const fmt = ms => { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  function show(i) {
+    index = (i + rooms.length) % rooms.length;
+    frames.forEach((f, n) => {
+      f.classList.toggle('on', n === index);
+      f.style.transform = n === index ? 'scale(1.18) translate(-2%, -1%)' : 'scale(1.05)';
+      f.style.transition = n === index ? 'transform ' + (SCENE / 1000) + 's linear, opacity .45s' : 'opacity .45s';
+    });
+    document.getElementById('room').textContent = p.type + ' · ' + p.area;
+    document.getElementById('cap').textContent = rooms[index].name;
+  }
+  function paint() {
+    const at = acc + index * SCENE;
+    document.getElementById('fill').style.width = Math.min(100, at / total * 100) + '%';
+    document.getElementById('time').textContent = fmt(at) + ' / ' + fmt(total);
+  }
+  function loop(now) {
+    if (playing) {
+      acc += now - last;
+      if (acc >= SCENE) { acc = 0; show(index + 1); }
+      paint();
+    }
+    last = now;
+    raf = requestAnimationFrame(loop);
+  }
+  function setPlay(on) {
+    playing = on;
+    document.getElementById('playBtn').style.display = on ? 'none' : 'grid';
+    document.getElementById('toggle').textContent = on ? 'Tạm dừng' : 'Phát';
+    if (on) last = performance.now();
+  }
+  document.getElementById('playBtn').onclick = () => setPlay(true);
+  document.getElementById('toggle').onclick = () => setPlay(!playing);
+  document.getElementById('prev').onclick = () => { acc = 0; show(index - 1); paint(); };
+  document.getElementById('next').onclick = () => { acc = 0; show(index + 1); paint(); };
+  document.getElementById('bar').onclick = e => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const at = Math.min(total - 1, Math.max(0, (e.clientX - r.left) / r.width * total));
+    show(Math.floor(at / SCENE));
+    acc = at % SCENE;
+    paint();
+  };
+  document.getElementById('stage').onclick = e => { if (e.target.id === 'stage' || e.target.classList.contains('frame') || e.target.classList.contains('shade')) setPlay(!playing); };
+  addEventListener('keydown', e => {
+    if (e.key === ' ') { e.preventDefault(); setPlay(!playing); }
+    if (e.key === 'ArrowRight') { acc = 0; show(index + 1); paint(); }
+    if (e.key === 'ArrowLeft') { acc = 0; show(index - 1); paint(); }
+  });
+  show(0);
+  paint();
+  setPlay(true);
+  raf = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

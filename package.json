@@ -1,0 +1,12 @@
+{
+  "name": "khang-thinh-land",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Website Khang Thịnh Land và trang quản trị local",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

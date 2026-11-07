@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Quản trị · Khang Thịnh Land</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect width='40' height='40' rx='8' fill='%230B1F3A'/><text x='8' y='28' font-size='20' fill='%23C9A24B' font-family='Arial' font-weight='bold'>KT</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css?v=7">
+</head>
+<body>
+<div id="loginView">
+  <form id="loginForm" class="login">
+    <div class="mark">KT</div>
+    <h1>Khang Thịnh Land</h1>
+    <p>Quản trị nội dung local · Node.js</p>
+    <label>Tài khoản<input name="username" value="admin" autocomplete="username" required></label>
+    <label>Mật khẩu<input name="password" type="password" autocomplete="current-password" placeholder="Mật khẩu" required></label>
+    <button class="btn gold" type="submit">Đăng nhập</button>
+    <p id="loginErr" class="err"></p>
+    <small>Lần đầu: <b>admin</b> / <b>admin123</b>. Đổi mật khẩu trong Cài đặt.</small>
+  </form>
+</div>
+<div id="app" hidden>
+  <aside>
+    <div class="brand"><span>KT</span><div>Khang Thịnh<b>ADMIN</b></div></div>
+    <nav id="nav"></nav>
+    <a class="out" href="/" target="_blank" rel="noopener">Xem website</a>
+    <button type="button" class="link" data-act="logout">Đăng xuất</button>
+  </aside>
+  <section class="main">
+    <header class="top"><h1 id="title">Tổng quan</h1><div id="actions"></div></header>
+    <div id="view"></div>
+  </section>
+</div>
+<div id="toast" role="status"></div>
+<script src="admin.js?v=7"></script>
+</body>
+</html>

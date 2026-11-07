@@ -1,0 +1,6 @@
+node_modules/
+*.tmp
+data/content.backup.json
+data/data.legacy.js
+data/auth.json
+data/leads.json

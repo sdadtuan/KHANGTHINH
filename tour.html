@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tour 360° – Khang Thịnh Land</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#061428;color:#fff;font-family:'Be Vietnam Pro',system-ui,sans-serif;overflow:hidden}
+button,a{font-family:inherit;color:inherit}
+.stage{position:fixed;inset:0;background:#061428;cursor:grab;touch-action:none}
+.stage.drag{cursor:grabbing}
+canvas{width:100%;height:100%;display:block}
+.top{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;align-items:center;gap:12px;padding:16px 18px;background:linear-gradient(rgba(6,20,40,.78),transparent);pointer-events:none}
+.top a{pointer-events:auto;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.1);color:#fff;border-radius:999px;padding:8px 14px;text-decoration:none}
+.top a:hover{background:#C9A24B;color:#0B1F3A}
+.title{display:flex;flex-direction:column;min-width:0}
+.title b{font-size:16px}
+.title small{color:#E8C877;font-size:12px}
+.badge{margin-left:auto;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;border:2px solid #E8C877;font-weight:800;background:rgba(6,20,40,.55)}
+.hint{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);z-index:3;background:rgba(6,20,40,.72);border:1px solid rgba(255,255,255,.25);border-radius:16px;padding:14px 18px;pointer-events:none;transition:opacity .4s;text-align:center}
+.pin{position:absolute;z-index:4;transform:translate(-50%,-50%);border:1px solid rgba(232,200,119,.8);background:rgba(11,31,58,.84);color:#fff;border-radius:999px;padding:8px 12px;cursor:pointer;white-space:nowrap;font-size:13px;font-weight:600}
+.pin:hover{background:#C9A24B;color:#0B1F3A}
+.rooms{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;gap:8px;overflow:auto;padding:16px;background:linear-gradient(transparent,rgba(6,20,40,.9))}
+.rooms button{flex:0 0 auto;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;border-radius:12px;overflow:hidden;cursor:pointer;width:116px;text-align:left}
+.rooms button.on{border-color:#E8C877}
+.rooms img{height:64px;width:100%;object-fit:cover;object-position:center 42%;display:block}
+.rooms span{display:block;padding:6px 8px 8px;font-size:12px}
+.load,.miss{position:fixed;inset:0;display:grid;place-items:center;background:#061428;z-index:5}
+.load[hidden]{display:none !important}
+.miss a{color:#E8C877}
+.credit{position:absolute;right:16px;bottom:108px;z-index:3;font-size:11px;color:rgba(255,255,255,.55)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="js/data.js"></script>
+<script src="js/tours.js"></script>
+<script>
+(function () {
+  const PANOS = {
+    living: ['uploads/pano/living.jpg', 'Phòng khách'],
+    lounge: ['uploads/pano/lounge.jpg', 'Phòng sinh hoạt'],
+    bed: ['uploads/pano/bed.jpg', 'Phòng ngủ'],
+    lobby: ['uploads/pano/lobby.jpg', 'Sảnh đón'],
+    pool: ['uploads/pano/pool.jpg', 'Hồ bơi'],
+    towers: ['uploads/pano/towers.jpg', 'Ngoại thất'],
+    sea: ['uploads/pano/sea.jpg', 'Hướng biển'],
+    street: ['uploads/pano/street.jpg', 'Mặt tiền'],
+    garden: ['uploads/pano/garden.jpg', 'Sân vườn'],
+    land: ['uploads/pano/land.jpg', 'Mặt bằng']
+  };
+  const SETS = {
+    'Căn hộ': ['towers', 'lobby', 'living', 'bed'],
+    'Biệt thự': ['garden', 'living', 'lounge', 'pool'],
+    'Nhà phố': ['street', 'living', 'lounge', 'bed'],
+    'Condotel': ['sea', 'lobby', 'bed', 'pool'],
+    'Đất nền': ['land', 'garden', 'street', 'towers']
+  };
+  const p = tourProject();
+  const root = document.getElementById('root');
+  if (!p) {
+    root.innerHTML = '<div class="miss"><div><p>Không tìm thấy dự án.</p><p><a href="du-an.html">Về danh sách dự án</a></p></div></div>';
+    return;
+  }
+  document.title = 'Tour 360° ' + p.name;
+  const keys = SETS[p.type] || SETS['Căn hộ'];
+  const rooms = keys.map(k => ({ src: PANOS[k][0], name: PANOS[k][1] }));
+  root.innerHTML = '<div class="stage" id="stage"><canvas id="cv"></canvas></div>' +
+    '<div class="top"><a href="' + tourBack(p) + '">← Dự án</a><div class="title"><b>' + p.name + '</b><small id="where"></small></div><div class="badge">360°</div></div>' +
+    '<div class="hint" id="hint">Kéo để xoay cả vòng · nhìn lên trần, nhìn ra sau lưng<br>Cuộn chuột để phóng to</div>' +
+    '<div id="pins"></div><div class="rooms" id="rooms"></div><div class="credit">Ảnh cầu 360° CC0 · Poly Haven</div>' +
+    '<div class="load" id="load">Đang tải ảnh cầu 360°…</div>';
+
+  const stage = document.getElementById('stage');
+  const canvas = document.getElementById('cv');
+  const gl = canvas.getContext('webgl', { antialias: false, preserveDrawingBuffer: true });
+  if (!gl) { document.getElementById('load').textContent = 'Trình duyệt không hỗ trợ WebGL.'; return; }
+
+  function sh(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, 'attribute vec2 a;varying vec2 v;void main(){v=a*.5+.5;gl_Position=vec4(a,0.,1.);}'));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, [
+    'precision mediump float;varying vec2 v;uniform sampler2D uTex;uniform float uYaw,uPitch,uFov,uAspect;',
+    'void main(){',
+    'float t=tan(radians(uFov)*.5);vec2 n=v*2.-1.;',
+    'vec3 r=normalize(vec3(n.x*t*uAspect,n.y*t,-1.));',
+    'float cp=cos(uPitch),sp=sin(uPitch);r=vec3(r.x,r.y*cp-r.z*sp,r.y*sp+r.z*cp);',
+    'float cy=cos(uYaw),sy=sin(uYaw);r=vec3(r.x*cy+r.z*sy,r.y,-r.x*sy+r.z*cy);',
+    'float lon=atan(r.x,-r.z);float lat=asin(clamp(r.y,-1.,1.));',
+    'gl_FragColor=texture2D(uTex,vec2(lon/6.2831853+.5,.5-lat/3.14159265));}'
+  ].join('')));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'a');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const uYaw = gl.getUniformLocation(prog, 'uYaw');
+  const uPitch = gl.getUniformLocation(prog, 'uPitch');
+  const uFov = gl.getUniformLocation(prog, 'uFov');
+  const uAspect = gl.getUniformLocation(prog, 'uAspect');
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  let index = 0, yaw = 0, pitch = 0, fov = 72, drag = null, vx = 0, vy = 0;
+  const pins = rooms.map(() => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pin';
+    b.hidden = true;
+    document.getElementById('pins').appendChild(b);
+    return b;
+  });
+  function resize() {
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    canvas.width = Math.max(2, stage.clientWidth * dpr);
+    canvas.height = Math.max(2, stage.clientHeight * dpr);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  function project(hy, hp) {
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    let x = Math.sin(hy) * Math.cos(hp), y = Math.sin(hp), z = -Math.cos(hy) * Math.cos(hp);
+    const x1 = x * cy - z * sy, z1 = x * sy + z * cy, y1 = y;
+    const y2 = y1 * cp + z1 * sp, z2 = -y1 * sp + z1 * cp, x2 = x1;
+    if (z2 > -0.08) return null;
+    const tanF = Math.tan(fov * Math.PI / 360);
+    const aspect = canvas.width / canvas.height;
+    const ndx = (x2 / -z2) / (tanF * aspect);
+    const ndy = (y2 / -z2) / tanF;
+    if (ndx < -1.15 || ndx > 1.15 || ndy < -1.15 || ndy > 1.15) return null;
+    return { x: (ndx * 0.5 + 0.5) * stage.clientWidth, y: (0.5 - ndy * 0.5) * stage.clientHeight };
+  }
+  function placePins() {
+    rooms.forEach((r, i) => {
+      const b = pins[i];
+      if (i === index) { b.hidden = true; return; }
+      const delta = ((i - index) % rooms.length + rooms.length) % rooms.length;
+      const pt = project(delta / rooms.length * Math.PI * 2, -0.05);
+      if (!pt) { b.hidden = true; return; }
+      b.hidden = false;
+      b.style.left = pt.x + 'px';
+      b.style.top = pt.y + 'px';
+      b.textContent = r.name;
+    });
+  }
+  function draw() {
+    gl.uniform1f(uYaw, yaw);
+    gl.uniform1f(uPitch, pitch);
+    gl.uniform1f(uFov, fov);
+    gl.uniform1f(uAspect, canvas.width / canvas.height);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    placePins();
+    const deg = Math.round(((yaw % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) * 180 / Math.PI);
+    document.getElementById('where').textContent = rooms[index].name + ' · đang nhìn ' + deg + '° / 360°';
+  }
+  function load(i) {
+    index = (i + rooms.length) % rooms.length;
+    yaw = 0; pitch = 0; vx = 0; vy = 0;
+    document.getElementById('load').hidden = false;
+    [].slice.call(document.querySelectorAll('#rooms button')).forEach((b, n) => b.classList.toggle('on', n === index));
+    const img = new Image();
+    img.onload = () => {
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+      document.getElementById('load').hidden = true;
+      draw();
+    };
+    img.onerror = () => { document.getElementById('load').textContent = 'Không tải được ảnh 360°.'; };
+    img.src = rooms[index].src;
+  }
+  pins.forEach((b, i) => b.onclick = () => load(i));
+  document.getElementById('rooms').innerHTML = rooms.map((r, i) => '<button type="button" data-i="' + i + '"><img alt="" src="' + r.src + '"><span>' + r.name + '</span></button>').join('');
+  document.getElementById('rooms').onclick = e => { const b = e.target.closest('button'); if (b) load(+b.dataset.i); };
+  stage.addEventListener('pointerdown', e => {
+    if (e.target.closest('.pin')) return;
+    stage.setPointerCapture(e.pointerId);
+    drag = { x: e.clientX, y: e.clientY };
+    stage.classList.add('drag');
+    document.getElementById('hint').style.opacity = '0';
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    drag.x = e.clientX; drag.y = e.clientY;
+    const aspect = canvas.width / canvas.height;
+    const k = fov * Math.PI / 180 / stage.clientHeight;
+    vx = dx * k * aspect; vy = dy * k;
+    yaw -= vx; pitch = Math.max(-1.25, Math.min(1.25, pitch + vy));
+    draw();
+  });
+  function up() { drag = null; stage.classList.remove('drag'); }
+  stage.addEventListener('pointerup', up);
+  stage.addEventListener('pointercancel', up);
+  stage.addEventListener('wheel', e => { e.preventDefault(); fov = Math.max(38, Math.min(100, fov + e.deltaY * 0.03)); draw(); }, { passive: false });
+  addEventListener('keydown', e => {
+    const k = fov * Math.PI / 180 / 28;
+    if (e.key === 'ArrowLeft') yaw += k;
+    if (e.key === 'ArrowRight') yaw -= k;
+    if (e.key === 'ArrowUp') pitch = Math.min(1.25, pitch + k);
+    if (e.key === 'ArrowDown') pitch = Math.max(-1.25, pitch - k);
+    draw();
+  });
+  addEventListener('resize', () => { resize(); draw(); });
+  (function tick() {
+    if (!drag && (Math.abs(vx) + Math.abs(vy) > 0.0004)) {
+      yaw -= vx; pitch = Math.max(-1.25, Math.min(1.25, pitch + vy));
+      vx *= 0.92; vy *= 0.92; draw();
+    }
+    requestAnimationFrame(tick);
+  })();
+  window.PANO = { get yaw() { return yaw; }, set yaw(v) { yaw = v; draw(); }, get pitch() { return pitch; }, set pitch(v) { pitch = v; draw(); }, load: load };
+  resize();
+  load(0);
+})();
+</script>
+</body>
+</html>
