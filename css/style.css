@@ -229,7 +229,11 @@ html{overflow-x:clip}.cmp-bar:not(.show){visibility:hidden}
 
 
 /* ---- line breaks from admin textareas ---- */
-.pre-line,#aboutLead,#aboutHistoryTitle,#aboutVision,#aboutMission,#aboutValues,.phero h1,.phero p,.xh-desc{white-space:pre-line}
+.pre-line,#aboutHistoryTitle,.phero h1,.xh-desc{white-space:pre-line}
+#aboutLead,#aboutVision,#aboutMission,#aboutValues{white-space:normal}
+#aboutLead p,#aboutVision p,#aboutMission p,#aboutValues p{margin:0 0 .7em;color:inherit}
+#aboutLead p:last-child,#aboutVision p:last-child,#aboutMission p:last-child,#aboutValues p:last-child{margin-bottom:0}
+.phero #aboutLead{max-width:640px;color:#C7D2E4}
 /* ---- CMS / rich article body ---- */
 .cms{font-size:17px;line-height:1.8;color:var(--text)}
 .cms p{margin:0 0 1.05em}

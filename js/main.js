@@ -33,6 +33,11 @@ function clip(text, max) {
 
 function looksHtml(s) { return /<[a-z][\s\S]*>/i.test(String(s || '')); }
 function nl(s) { return esc(s).replace(/\r\n|\r|\n/g, '<br>'); }
+function nlHtml(s) {
+  s = String(s || '').replace(/^\s+|\s+$/g, '');
+  if (!s) return '';
+  return esc(s).split(/\n{2,}/).map(p => '<p>' + p.replace(/\r?\n/g, '<br>') + '</p>').join('');
+}
 function cssUrl(u) { return String(u || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\)/g, '\\)').replace(/[\n\r]/g, ''); }
 function richHtml(s) {
   s = String(s || '');
@@ -55,11 +60,15 @@ function applyPageHero() {
   const h1 = el.querySelector('h1');
   const p = el.querySelector('.container > h1 + p, .container > p');
   if (h1 && title) h1.textContent = title;
-  if (p && sub) p.textContent = sub;
+  if (p && sub) p.innerHTML = nlHtml(sub);
   if (image) {
     el.style.backgroundImage = 'linear-gradient(120deg,rgba(6,20,40,.94),rgba(11,31,58,.7)),url("' + cssUrl(image) + '")';
     el.style.backgroundSize = 'cover';
     el.style.backgroundPosition = 'center';
+  } else {
+    el.style.backgroundImage = '';
+    el.style.backgroundSize = '';
+    el.style.backgroundPosition = '';
   }
 }
 function site() {
@@ -268,7 +277,8 @@ const Pages = {
     if (A) {
       const h1 = $('.phero h1'); if (h1 && A.title) h1.textContent = A.title;
       const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.textContent = val; };
-      set('aboutLead', A.lead); set('aboutHistoryTitle', A.historyTitle); set('aboutVision', A.vision); set('aboutMission', A.mission); set('aboutValues', A.values);
+      const setRich = (id, val) => { const el = document.getElementById(id); if (el && val) el.innerHTML = nlHtml(val); };
+      setRich('aboutLead', A.lead); set('aboutHistoryTitle', A.historyTitle); setRich('aboutVision', A.vision); setRich('aboutMission', A.mission); setRich('aboutValues', A.values);
       const tl = document.getElementById('aboutHistory');
       if (tl && A.history && A.history.length) tl.innerHTML = A.history.map(h => `<div><b>${esc(h.year)}</b> – ${esc(h.text)}</div>`).join('');
       const img = document.getElementById('aboutImage'); if (img && A.image) img.src = A.image;

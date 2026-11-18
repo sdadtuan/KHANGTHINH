@@ -141,6 +141,12 @@ function inp(id, val, attrs) {
 function area(id, val, rows) {
   return `<textarea id="${id}" rows="${rows || 4}">${esc(val || '')}</textarea>`;
 }
+function autoGrow(el) {
+  if (!el) return;
+  const grow = () => { el.style.height = 'auto'; el.style.height = Math.min(480, Math.max(168, el.scrollHeight)) + 'px'; };
+  el.addEventListener('input', grow);
+  grow();
+}
 function options(list, cur) {
   const all = list.slice();
   if (cur && all.indexOf(cur) < 0) all.push(cur);
@@ -1033,7 +1039,7 @@ function renderAbout() {
     <div class="panel">
       <p class="hint">Enter trong các ô mô tả để xuống dòng, website sẽ hiện đúng như vậy.</p>
       ${fld('Tiêu đề', inp('f-title', a.title))}
-      ${fld('Đoạn mở đầu (Enter để xuống dòng)', area('f-lead', a.lead, 3))}
+      ${fld('Đoạn mở đầu (Enter để xuống dòng)', area('f-lead', a.lead, 8))}
       ${fld('Tiêu đề lịch sử', inp('f-ht', a.historyTitle))}
       <span class="fld"><span>Cột mốc</span></span>
       <div id="hist" class="catlist">${(a.history || []).map(histRow).join('')}</div>
@@ -1042,7 +1048,7 @@ function renderAbout() {
       ${fld('Sứ mệnh', area('f-mission', a.mission, 3))}
       ${fld('Giá trị cốt lõi', area('f-values', a.values, 2))}
     </div>
-    <div class="panel">${coverBlock('f-hero', a.heroImage || heroOf('about').image, 'Ảnh nền banner đầu trang')}${coverBlock('f-image', a.image, 'Ảnh minh họa (mục lịch sử)')}</div>
+    <div class="panel">${coverBlock('f-hero', a.heroImage || heroOf('about').image, 'Ảnh nền')}<p class="hint">Ảnh nền banner đầu trang Giới thiệu. Gỡ ảnh để dùng ảnh mặc định.</p>${coverBlock('f-image', a.image, 'Ảnh minh họa (mục lịch sử)')}</div>
     <div class="formbar"><button class="btn gold" type="submit">Lưu giới thiệu</button><a class="btn ghost" href="/gioi-thieu.html" target="_blank" rel="noopener">Xem trang</a></div>
   </form>`;
   $('#editForm').onsubmit = async e => {
@@ -1064,6 +1070,7 @@ function renderAbout() {
     db.settings = Object.assign({}, db.settings, { heroes: Object.assign({}, (db.settings && db.settings.heroes) || {}, { about: Object.assign({}, heroOf('about'), { title: db.about.title, subtitle: db.about.lead, image: db.about.heroImage }) }) });
     try { await saveContent(); } catch (err) { if (!err.auth) toast(err.message); }
   };
+  autoGrow($('#f-lead'));
 }
 
 function statRow(s) {
