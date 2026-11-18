@@ -56,16 +56,12 @@ const NAV = [['index.html', 'Trang chủ'], ['gioi-thieu.html', 'Giới thiệu'
  ['tu-van-ai.html', 'AI thực chiến', [['tu-van-ai.html', 'AI tư vấn tìm nhà'], ['cong-cu-tai-chinh.html', 'Công cụ tài chính'], ['so-sanh.html', 'So sánh dự án'], ['#chat', 'Chat với trợ lý AI']]], ['tin-tuc.html', 'Tin tức'], ['tuyen-dung.html', 'Tuyển dụng'], ['lien-he.html', 'Liên hệ']];
 /* Logo: lấy từ Cài đặt trong admin (SITE.logo...), không có thì dùng logo SVG mặc định */
 const LOGO_SVG = h => `<svg viewBox="0 0 40 40" width="${h}" height="${h}"><defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#E8C877"/><stop offset="1" stop-color="#B8892F"/></linearGradient></defs><path d="M20 3 36 13v24H4V13z" fill="none" stroke="url(#g)" stroke-width="2.5"/><path d="M13 30V17h3v5l5-5h4l-6 6 6 7h-4l-5-6v6z" fill="url(#g)"/></svg>`;
-function logoHtml(where) {
+function logoHtml() {
   const s = window.SITE || {};
-  const h = Math.min(120, Math.max(20, Number(s.logoHeight) || 38));
-  const src = where === 'footer' ? (s.logoFooter || s.logo) : s.logo;
-  const name = s.logoName == null ? 'Khang Thịnh' : String(s.logoName), sub = s.logoSub == null ? 'LAND' : String(s.logoSub);
-  const text = s.logoText !== false && (name || sub) ? `<span>${esc(name)}${sub ? `<b>${esc(sub)}</b>` : ''}</span>` : '';
-  const mark = src ? `<img class="logo-img" src="${esc(src)}" alt="${esc(s.siteName || 'Logo')}" style="height:${h}px">` : LOGO_SVG(h);
-  return `<a href="index.html" class="logo">${mark}${text}</a>`;
+  if (s.logo) return `<a href="index.html" class="logo"><img class="logo-img" src="${esc(s.logo)}" alt="${esc(s.siteName || 'Logo')}"></a>`;
+  return `<a href="index.html" class="logo">${LOGO_SVG(38)}<span>Khang Thịnh<b>LAND</b></span></a>`;
 }
-const LOGO = logoHtml('header');
+const LOGO = logoHtml();
 function card(p) {
   return `<article class="pcard reveal"><a href="du-an-chi-tiet.html?id=${p.id}" class="pimg"><img loading="lazy" src="${p.thumb}" alt="${p.name}"><span class="badge s-${p.status}">${STATUS[p.status]}</span>${p.hot ? '<span class="hot">HOT</span>' : ''}</a>
   <div class="pbody"><small>${p.type} · ${p.area}</small><h3><a href="du-an-chi-tiet.html?id=${p.id}">${p.name}</a></h3><p>${p.desc}</p>
@@ -77,9 +73,9 @@ function layout() {
   const page = document.body.dataset.page, cur = location.pathname.split('/').pop() || 'index.html';
   const nav = NAV.map(([h, t, sub]) => `<li class="${sub ? 'has-sub' : ''}"><a href="${h}" class="${cur === h.split('?')[0] ? 'active' : ''}" ${h === '#chat' ? 'data-open-chat' : ''}>${esc(t)}${sub ? ' <i>▾</i>' : ''}</a>${sub ? `<ul class="sub">${sub.map(([sh, st]) => `<li><a href="${sh}" ${sh === '#chat' ? 'data-open-chat' : ''}>${esc(st)}</a></li>`).join('')}</ul>` : ''}</li>`).join('');
   document.body.insertAdjacentHTML('afterbegin', `<div class="topbar"><div class="container"><span>📍 ${esc(s.address)}</span><span><a href="tel:${esc(s.hotlineTel)}">☎ ${esc(s.hotline)}</a> · <a href="mailto:${esc(s.email)}">${esc(s.email)}</a></span></div></div>
-  <header class="header"><div class="container nav-wrap">${logoHtml('header')}<nav><ul class="menu">${nav}</ul></nav>
+  <header class="header"><div class="container nav-wrap">${logoHtml()}<nav><ul class="menu">${nav}</ul></nav>
   <div class="nav-act"><button class="icon-btn" id="themeBtn" aria-label="Đổi giao diện sáng/tối">◐</button><a href="lien-he.html" class="btn btn-gold sm hide-m">Nhận tư vấn</a><button class="icon-btn burger" aria-label="Menu">☰</button></div></div></header>`);
-  const footer = `<footer class="footer"><div class="container fgrid"><div>${logoHtml('footer')}<p>Nhà phân phối bất động sản chuyên nghiệp – minh bạch pháp lý, tư vấn bằng dữ liệu & AI.</p><div class="social"><a href="#" aria-label="Facebook">f</a><a href="#" aria-label="YouTube">▶</a><a href="${esc(s.zalo)}" aria-label="Zalo">Z</a></div></div>
+  const footer = `<footer class="footer"><div class="container fgrid"><div>${logoHtml()}<p>Nhà phân phối bất động sản chuyên nghiệp – minh bạch pháp lý, tư vấn bằng dữ liệu & AI.</p><div class="social"><a href="#" aria-label="Facebook">f</a><a href="#" aria-label="YouTube">▶</a><a href="${esc(s.zalo)}" aria-label="Zalo">Z</a></div></div>
   <div><h4>Dự án</h4>${Object.entries(STATUS).map(([id, label]) => `<a href="du-an.html?status=${encodeURIComponent(id)}">${esc(label)}</a>`).join('')}</div>
   <div><h4>AI thực chiến</h4><a href="tu-van-ai.html">AI tư vấn tìm nhà</a><a href="cong-cu-tai-chinh.html">Tính vay & ROI</a><a href="so-sanh.html">So sánh dự án</a></div>
   <div><h4>Liên hệ</h4><a href="tel:${esc(s.hotlineTel)}">Hotline: ${esc(s.hotline)}</a><a href="mailto:${esc(s.email)}">${esc(s.email)}</a><a href="tuyen-dung.html">Tuyển dụng</a><a href="lien-he.html">Văn phòng</a><a href="admin/">Quản trị</a></div></div>
@@ -87,7 +83,7 @@ function layout() {
   <div class="float-cta"><a href="tel:${esc(s.hotlineTel)}" class="fc call" aria-label="Gọi hotline">☎</a><a href="${esc(s.zalo)}" class="fc zalo" target="_blank" rel="noopener" aria-label="Zalo">Zalo</a></div>
   <div class="cmp-bar" id="cmpBar"><span></span><a class="btn btn-gold sm" href="so-sanh.html">So sánh ngay</a><button class="icon-btn" id="cmpClear" aria-label="Xóa">✕</button></div>`;
   document.body.insertAdjacentHTML('beforeend', footer);
-  if (s.favicon) { let ic = document.querySelector('link[rel~="icon"]'); if (!ic) { ic = document.createElement('link'); ic.rel = 'icon'; document.head.appendChild(ic); } ic.href = s.favicon; }
+  if (s.logo) { let ic = document.querySelector('link[rel~="icon"]'); if (!ic) { ic = document.createElement('link'); ic.rel = 'icon'; document.head.appendChild(ic); } ic.href = s.logo; }
   $('.burger').onclick = () => document.body.classList.toggle('menu-open');
   const th = localStorage.getItem('kt_theme'); if (th) document.documentElement.dataset.theme = th;
   $('#themeBtn').onclick = () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; localStorage.setItem('kt_theme', t); };
@@ -100,7 +96,18 @@ const Cmp = { get: () => JSON.parse(localStorage.getItem('kt_cmp') || '[]'), set
 document.addEventListener('change', e => { const id = e.target.dataset && e.target.dataset.cmp; if (!id) return; let v = Cmp.get();
   if (e.target.checked) { if (v.length >= 3) { e.target.checked = false; return toast('Chỉ so sánh tối đa 3 dự án'); } v.push(id); } else v = v.filter(x => x !== id); Cmp.set(v); });
 function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2800); }
-function reveal() { const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .08 }); $$('.reveal:not(.in)').forEach(el => io.observe(el)); }
+function reveal() {
+  const show = el => el.classList.add('in');
+  const visible = el => { const r = el.getBoundingClientRect(); return r.height > 0 && r.bottom > 0 && r.top < (window.innerHeight || 0) + 80; };
+  const tick = () => $$('.reveal:not(.in)').forEach(el => { if (visible(el)) show(el); });
+  if (typeof IntersectionObserver === 'function') {
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { show(e.target); io.unobserve(e.target); } }), { threshold: 0.08, rootMargin: '80px' });
+    $$('.reveal:not(.in)').forEach(el => io.observe(el));
+  }
+  tick();
+  requestAnimationFrame(tick);
+  addEventListener('scroll', tick, { passive: true });
+}
 /* Form lead chung: <form data-lead="nguồn"> */
 function bindLeadForms() {
   $$('form[data-lead]').forEach(f => f.onsubmit = e => { e.preventDefault(); const d = Object.fromEntries(new FormData(f));
@@ -207,7 +214,8 @@ const Pages = {
     const body = (n.body || '').trim() ? richHtml(n.body) : `<p>${esc(n.excerpt || '')}</p>`;
     const hrefCat = 'tin-tuc.html?cat=' + encodeURIComponent(n.cat);
     const art = $('#art');
-    if (art) art.innerHTML = `<div class="crumbs"><a href="index.html">Trang chủ</a> / <a href="tin-tuc.html">Tin tức</a> / <a href="${hrefCat}">${esc(n.cat)}</a></div>
+    if (art) art.innerHTML = `<p class="art-back"><a href="tin-tuc.html">← Quay lại Tin tức</a></p>
+    <div class="crumbs"><a href="index.html">Trang chủ</a> / <a href="tin-tuc.html">Tin tức</a> / <a href="${hrefCat}">${esc(n.cat)}</a></div>
     <div class="nmeta"><span class="ntag">${esc(n.cat)}</span><time>${esc(n.date)}</time></div>
     <h1>${esc(n.title)}</h1>
     ${n.excerpt ? `<p class="nlead pre-line">${esc(n.excerpt)}</p>` : ''}
@@ -298,5 +306,9 @@ document.addEventListener('DOMContentLoaded', () => {
   /* Lỗi ở một trang không được làm mất form, chat, so sánh... */
   if (Pages[pg]) { try { Pages[pg](); } catch (err) { console.error('Lỗi hiển thị trang', pg, err); } }
   try { applyPageHero(); } catch (err) { console.error('Lỗi banner trang', err); }
-  $('[data-leadform]').forEach(el => el.innerHTML = leadForm(el.dataset.leadform)); bindLeadForms(); Chat.init(); Cmp.ui(); reveal();
+  try { $$('[data-leadform]').forEach(el => { el.innerHTML = leadForm(el.dataset.leadform); }); bindLeadForms(); }
+  catch (err) { console.error('Lỗi form liên hệ', err); }
+  try { Chat.init(); } catch (err) { console.error('Lỗi chat', err); }
+  try { Cmp.ui(); } catch (err) { console.error('Lỗi so sánh', err); }
+  reveal();
 });

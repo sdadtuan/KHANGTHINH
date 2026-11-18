@@ -17,7 +17,7 @@ h1,h2,h3{line-height:1.25;letter-spacing:-.01em}
 .header{position:sticky;top:0;z-index:50;background:rgba(11,31,58,.82);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(201,162,75,.18);transition:.3s}
 .header.scrolled{background:rgba(11,31,58,.96);box-shadow:0 8px 30px rgba(0,0,0,.25)}
 .nav-wrap{display:flex;align-items:center;justify-content:space-between;height:74px;gap:16px}
-.logo{display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;font-size:19px}.logo span{display:flex;flex-direction:column;line-height:1.05}.logo b{font-size:11px;letter-spacing:.42em;color:var(--gold2)}.logo .logo-img{display:block;width:auto;max-width:260px;object-fit:contain}
+.logo{display:flex;align-items:center;gap:10px;color:#fff;font-weight:700;font-size:19px}.logo span{display:flex;flex-direction:column;line-height:1.05}.logo b{font-size:11px;letter-spacing:.42em;color:var(--gold2)}.logo .logo-img{display:block;width:auto;max-width:260px;height:38px;object-fit:contain}
 .menu{display:flex;gap:4px}.menu>li{position:relative}.menu a{display:block;padding:10px 13px;color:#DCE3EE;font-weight:500;font-size:14.5px;border-radius:10px;transition:.2s}
 .menu a:hover,.menu a.active{color:var(--gold2)}.menu i{font-style:normal;font-size:10px;opacity:.6}
 .sub{position:absolute;top:100%;left:0;min-width:220px;background:rgba(11,31,58,.97);backdrop-filter:blur(14px);border:1px solid rgba(201,162,75,.2);border-radius:14px;padding:8px;opacity:0;visibility:hidden;transform:translateY(8px);transition:.25s var(--ease);box-shadow:var(--sh2)}
@@ -277,6 +277,7 @@ html{overflow-x:clip}.cmp-bar:not(.show){visibility:hidden}
 .nmore{font-weight:700;font-size:13px;color:var(--navy);margin-top:auto}
 .nmore:hover{color:var(--gold)}
 /* ---- news article ---- */
+.art-back{margin:0 0 16px}.art-back a{display:inline-flex;align-items:center;font-weight:700;color:var(--navy);text-decoration:none}.art-back a:hover{color:var(--gold)}
 .news-wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:48px;padding:48px 0 90px;align-items:start}
 .article{max-width:760px;width:100%}
 .article .crumbs{color:var(--muted);margin-bottom:14px}

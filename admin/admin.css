@@ -210,3 +210,42 @@ a.lead-proj small{color:var(--muted);font-weight:500}
 @media(max-width:980px){
   .logo-grid,.logo-opts,.logo-prev{grid-template-columns:1fr}
 }
+
+/* Logo: một ảnh */
+.logo-one .logo-prev{display:block;margin:0 0 12px}
+.logo-one .on-head{min-height:120px;background:#0B1F3A;border-radius:12px;display:flex;align-items:center;padding:16px 20px}
+.logo-one .lgo img{max-height:88px;height:auto;width:auto;max-width:280px;object-fit:contain}
+
+/* Tin tức admin */
+.newsbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.newsbar input{flex:1;min-width:200px}
+.newsbar select{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font:inherit}
+.ncount{color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap}
+.nlist{display:flex;flex-direction:column;gap:12px}
+.nrow{display:grid;grid-template-columns:160px minmax(0,1fr) auto;gap:16px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;transition:box-shadow .15s}
+.nrow:hover{box-shadow:0 8px 24px rgba(11,31,58,.08)}
+.nthumb{display:block;width:160px;height:108px;border-radius:12px;overflow:hidden;background:#E8EDF5}
+.nthumb img,.nph{width:160px;height:108px;object-fit:cover;display:grid;place-items:center;color:var(--muted);font-size:12px;font-weight:600}
+.nmain h3{margin:0 0 6px;font-size:16px;line-height:1.35}
+.nmain h3 a{text-decoration:none}
+.nmain h3 a:hover{color:var(--gold)}
+.nmain p{margin:0;color:var(--muted);font-weight:500;font-size:13.5px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nmain .nmeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.nmain time{color:var(--muted);font-size:13px;font-weight:500}
+.nbadge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700}
+.nbadge.c0{background:#F8F1DE;color:#8A6A1E}
+.nbadge.c1{background:#E7F6EE;color:#067647}
+.nbadge.c2{background:#E8EEF8;color:#1F4E8C}
+.nbadge.c3{background:#FDECEC;color:#B42318}
+.nbadge.c4{background:#F3EAF8;color:#6941C6}
+.nbadge.c5{background:#E7F6F4;color:#0E7C7B}
+.news-edit{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+.news-edit-side{position:sticky;top:12px;color:var(--text)}
+.news-edit-main .rich-ed{min-height:420px}
+@media(max-width:980px){
+  .news-edit{grid-template-columns:1fr}
+  .news-edit-side{position:static}
+  .nrow{grid-template-columns:100px 1fr}
+  .nthumb,.nthumb img,.nph{width:100px;height:76px}
+  .nacts{grid-column:1/-1;justify-content:flex-start}
+}

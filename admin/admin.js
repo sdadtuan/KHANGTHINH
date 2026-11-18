@@ -78,6 +78,49 @@ function setTitle(t) {
 }
 function setActions(html) { $('#actions').innerHTML = html || ''; }
 
+const routeGuard = { dirty: false, bypass: false, backTo: '', lastHash: '' };
+function startEditGuard(backTo) {
+  routeGuard.dirty = false;
+  routeGuard.bypass = false;
+  routeGuard.backTo = backTo || '';
+  routeGuard.lastHash = location.hash;
+  const box = view();
+  const flag = () => { routeGuard.dirty = true; };
+  box.addEventListener('input', flag);
+  box.addEventListener('change', flag);
+}
+function clearEditGuard() { routeGuard.backTo = ''; }
+function confirmLeave() {
+  if (routeGuard.bypass) { routeGuard.bypass = false; return true; }
+  if (!routeGuard.dirty) return true;
+  return confirm('Bạn chưa lưu thay đổi. Rời khỏi trang này?');
+}
+function leaveTo(hash) {
+  if (!confirmLeave()) return false;
+  routeGuard.dirty = false;
+  routeGuard.bypass = true;
+  routeGuard.backTo = '';
+  if (hash) location.hash = hash;
+  return true;
+}
+function parseVNDate(s) {
+  const m = String(s || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return 0;
+  return Date.UTC(+m[3], +m[2] - 1, +m[1]);
+}
+function plainExcerpt(s) {
+  return String(s || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim();
+}
+function catBadge(cat) {
+  const pal = ['c0', 'c1', 'c2', 'c3', 'c4', 'c5'];
+  const s = String(cat || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return `<span class="nbadge ${pal[Math.abs(h) % pal.length]}">${esc(s || 'Chưa phân loại')}</span>`;
+}
+
+let newsListState = { q: '', cat: '', sort: 'manual' };
+
 async function saveContent() {
   const res = await api('/api/content', { method: 'PUT', body: db });
   db = res.content;
@@ -399,6 +442,7 @@ function dayLabel(t) {
 }
 
 async function renderProjects() {
+  clearEditGuard();
   setTitle('Dự án');
   setActions('<a class="btn gold" href="#/projects/edit">Thêm dự án</a>');
   view().innerHTML = '<p class="muted">Đang tải...</p>';
@@ -592,12 +636,13 @@ function renderProject(id, leads) {
       <p class="hint">Câu hỏi thường gặp riêng của dự án này.</p>
       ${box('faq', 'faqRows', p.faqs, 'Thêm câu hỏi')}
     </div>
-    <div class="formbar"><button class="btn gold" type="submit">Lưu dự án</button><a class="btn ghost" href="#/projects">Hủy</a>${isNew ? '' : `<a class="btn ghost" target="_blank" rel="noopener" href="/du-an-chi-tiet.html?id=${esc(p.id)}">Xem trang</a>`}</div>
+    <div class="formbar"><button class="btn gold" type="submit">Lưu dự án</button><button class="btn ghost" type="button" data-act="back-list" data-to="#/projects">Hủy</button>${isNew ? '' : `<a class="btn ghost" target="_blank" rel="noopener" href="/du-an-chi-tiet.html?id=${esc(p.id)}">Xem trang</a>`}</div>
   </form>`;
   view().innerHTML = withLeads
-    ? `<p class="back"><a href="#/projects">← Tất cả dự án</a></p><div class="pwork"><div class="pwork-main">${form}</div>${projectLeadsHtml(leads, p.id)}</div>`
-    : form;
+    ? `<p class="back"><a href="#/projects" data-act="back-list" data-to="#/projects">← Quay lại danh sách</a></p><div class="pwork"><div class="pwork-main">${form}</div>${projectLeadsHtml(leads, p.id)}</div>`
+    : `<p class="back"><a href="#/projects" data-act="back-list" data-to="#/projects">← Quay lại danh sách</a></p>${form}`;
   paintGal();
+  startEditGuard('#/projects');
   $('#ptabs').onclick = e => {
     const b = e.target.closest('button');
     if (!b) return;
@@ -694,6 +739,7 @@ async function saveProject() {
   if (i >= 0) db.projects[i] = item; else db.projects.push(item);
   try {
     await saveContent();
+    routeGuard.dirty = false;
     const saved = db.projects.find(p => p.id === (item.id || ctx.originalId)) || db.projects.find(p => p.name === item.name);
     const next = '#/projects/' + encodeURIComponent(saved ? saved.id : item.id);
     if (location.hash === next) render();
@@ -702,47 +748,111 @@ async function saveProject() {
 }
 
 function renderNewsList() {
-  listPage('Tin tức', 'news', '#/news/edit', n => `<article class="row">
-    <img src="${esc(n.image)}" alt="">
-    <div><b>${esc(n.title)}</b><small>${esc(n.cat)} · ${esc(n.date)}</small></div>
-    <em></em>
-    <div class="rowact"><a class="btn sm" href="#/news/edit/${esc(n.id)}">Sửa</a><a class="btn sm ghost" target="_blank" rel="noopener" href="/tin-tuc-chi-tiet.html?id=${esc(n.id)}">Xem</a>${moveButtons('news', n.id)}</div>
-  </article>`, 'Tìm tin...');
+  setTitle('Tin tức');
+  setActions('<a class="btn gold" href="#/news/edit">Thêm mới</a>');
+  clearEditGuard();
+  const items = db.news || [];
+  const cats = [];
+  items.forEach(n => { if (n.cat && cats.indexOf(n.cat) < 0) cats.push(n.cat); });
+  const st = newsListState;
+  view().innerHTML = `<div class="toolbar newsbar">
+      <input id="q" placeholder="Tìm tiêu đề, chuyên mục, tóm tắt..." aria-label="Tìm tin" value="${esc(st.q)}">
+      <select id="fCat" aria-label="Lọc chuyên mục"><option value="">Mọi chuyên mục</option>${cats.map(c => `<option value="${esc(c)}" ${st.cat === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+      <select id="fSort" aria-label="Sắp xếp">
+        <option value="manual" ${st.sort === 'manual' ? 'selected' : ''}>Thứ tự hiện tại</option>
+        <option value="date-desc" ${st.sort === 'date-desc' ? 'selected' : ''}>Ngày mới nhất</option>
+        <option value="date-asc" ${st.sort === 'date-asc' ? 'selected' : ''}>Ngày cũ nhất</option>
+        <option value="title" ${st.sort === 'title' ? 'selected' : ''}>Theo tiêu đề</option>
+      </select>
+      <span class="ncount" id="newsCount"></span>
+    </div>
+    <div class="nlist" id="nlist"></div>`;
+  const paint = () => {
+    st.q = ($('#q').value || '').trim();
+    st.cat = $('#fCat').value;
+    st.sort = $('#fSort').value;
+    const q = st.q.toLowerCase();
+    let rows = items.slice();
+    if (st.sort === 'date-desc') rows.sort((a, b) => parseVNDate(b.date) - parseVNDate(a.date));
+    else if (st.sort === 'date-asc') rows.sort((a, b) => parseVNDate(a.date) - parseVNDate(b.date));
+    else if (st.sort === 'title') rows.sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'vi'));
+    const vis = rows.filter(n => {
+      if (st.cat && n.cat !== st.cat) return false;
+      if (!q) return true;
+      return [n.title, n.cat, n.date, n.excerpt].join(' ').toLowerCase().indexOf(q) >= 0;
+    });
+    $('#newsCount').textContent = items.length ? (vis.length + ' / ' + items.length + ' bài') : '0 bài';
+    const box = $('#nlist');
+    if (!items.length) {
+      box.innerHTML = '<div class="empty">Chưa có bài viết. Bấm <b>Thêm mới</b> để đăng tin.</div>';
+      return;
+    }
+    if (!vis.length) {
+      box.innerHTML = '<div class="empty">Không tìm thấy bài viết phù hợp.</div>';
+      return;
+    }
+    box.innerHTML = vis.map(n => {
+      const ex = plainExcerpt(n.excerpt || n.body);
+      const img = n.image ? `<img src="${esc(n.image)}" alt="">` : '<div class="nph">Không có ảnh</div>';
+      return `<article class="nrow">
+        <a class="nthumb" href="#/news/edit/${esc(n.id)}">${img}</a>
+        <div class="nmain">
+          <div class="nmeta">${catBadge(n.cat)}<time>${esc(n.date || '')}</time></div>
+          <h3><a href="#/news/edit/${esc(n.id)}">${esc(n.title)}</a></h3>
+          <p>${esc(ex)}</p>
+        </div>
+        <div class="rowact nacts">
+          <a class="btn sm" href="#/news/edit/${esc(n.id)}">Sửa</a>
+          <a class="btn sm ghost" target="_blank" rel="noopener" href="/tin-tuc-chi-tiet.html?id=${esc(n.id)}">Xem</a>
+          ${moveButtons('news', n.id)}
+        </div>
+      </article>`;
+    }).join('');
+  };
+  $('#q').oninput = paint;
+  $('#fCat').onchange = paint;
+  $('#fSort').onchange = paint;
+  paint();
 }
 
 function renderNews(id) {
   const isNew = !id;
   const n = isNew ? { id: '', cat: db.newsCats[0] || 'Tin tức', title: '', date: todayVN(), excerpt: '', body: '', image: '' } : db.news.find(x => x.id === id);
-  if (!n) { setTitle('Tin tức'); view().innerHTML = '<p class="empty">Không tìm thấy bài viết.</p>'; return; }
+  if (!n) { setTitle('Tin tức'); view().innerHTML = '<p class="empty">Không tìm thấy bài viết. <a href="#/news">← Quay lại danh sách</a></p>'; return; }
   ctx = { type: 'news', originalId: isNew ? '' : n.id };
   setTitle(isNew ? 'Thêm tin' : 'Sửa tin');
-  setActions('');
-  view().innerHTML = `<form id="editForm" class="split">
-    <div class="panel">
+  setActions(`<a class="btn ghost" href="#/news" data-act="back-list" data-to="#/news">← Quay lại danh sách</a>`);
+  view().innerHTML = `<p class="back"><a href="#/news" data-act="back-list" data-to="#/news">← Quay lại danh sách</a></p>
+  <form id="editForm" class="news-edit">
+    <div class="panel news-edit-main">
       ${fld('Tiêu đề', inp('f-title', n.title, 'required'))}
-      ${fld('Mã liên kết', inp('f-id', isNew ? '' : n.id))}
-      ${fld('Danh mục', `<input id="f-cat" list="catList" value="${esc(n.cat)}"><datalist id="catList">${options(db.newsCats, '')}</datalist>`)}
-      ${fld('Ngày hiển thị', inp('f-date', n.date, 'placeholder="28/10/2026"'))}
-      ${fld('Tóm tắt (hiện ở danh sách, Enter để xuống dòng)', area('f-excerpt', n.excerpt, 3))}
       ${richBlock('f-body', n.body, 'Nội dung bài viết', 'Dán toàn bộ bài, dùng thanh công cụ để tạo tiêu đề, in đậm, danh sách, liên kết và ảnh. Bài cũ dạng thuần văn bản sẽ được chuyển thành đoạn văn khi mở.')}
     </div>
-    <div class="panel">${coverBlock('f-image', n.image, 'Ảnh bài viết')}</div>
-    <div class="formbar"><button class="btn gold" type="submit">Lưu tin</button><a class="btn ghost" href="#/news">Hủy</a></div>
+    <div class="panel news-edit-side">
+      ${fld('Danh mục', `<input id="f-cat" list="catList" value="${esc(n.cat)}"><datalist id="catList">${options(db.newsCats, '')}</datalist>`)}
+      ${fld('Ngày hiển thị', inp('f-date', n.date, 'placeholder="28/10/2026"'))}
+      ${fld('Mã liên kết (để trống sẽ tạo từ tiêu đề)', inp('f-id', isNew ? '' : n.id))}
+      ${coverBlock('f-image', n.image, 'Ảnh bìa')}
+      ${fld('Tóm tắt (hiện ở danh sách, Enter để xuống dòng)', area('f-excerpt', n.excerpt, 4))}
+      <div class="formbar"><button class="btn gold" type="submit">Lưu</button><button class="btn ghost" type="button" data-act="back-list" data-to="#/news">Hủy</button>${isNew ? '' : `<a class="btn ghost" target="_blank" rel="noopener" href="/tin-tuc-chi-tiet.html?id=${esc(n.id)}">Xem</a>`}</div>
+    </div>
   </form>`;
   wireRich(view());
+  startEditGuard('#/news');
   $('#editForm').onsubmit = async e => {
     e.preventDefault();
     const item = { id: val('f-id'), title: val('f-title'), cat: val('f-cat') || 'Tin tức', date: val('f-date'), excerpt: $('#f-excerpt').value.replace(/^\s+|\s+$/g, ''), body: richVal('f-body'), image: val('f-image') };
     if (!item.title) return toast('Nhập tiêu đề');
     const i = ctx.originalId ? db.news.findIndex(x => x.id === ctx.originalId) : -1;
     if (i >= 0) db.news[i] = item; else db.news.unshift(item);
-    try { await saveContent(); location.hash = '#/news'; } catch (err) { if (!err.auth) toast(err.message); }
+    try { await saveContent(); routeGuard.dirty = false; location.hash = '#/news'; } catch (err) { if (!err.auth) toast(err.message); }
   };
 }
 
 function linesOf(id) { return $('#' + id).value.split(/\r?\n/).map(s => s.trim()).filter(Boolean); }
 
 function renderJobs() {
+  clearEditGuard();
   listPage('Tuyển dụng', 'jobs', '#/jobs/edit', j => `<article class="row">
     <img alt="" src="">
     <div><b>${esc(j.title)}</b><small>${esc(j.place)} · ${esc(j.qty)} người · hạn ${esc(j.deadline)}</small></div>
@@ -757,9 +867,9 @@ function renderJob(id) {
   if (!j) { setTitle('Tuyển dụng'); view().innerHTML = '<p class="empty">Không tìm thấy vị trí.</p>'; return; }
   ctx = { type: 'job', originalId: isNew ? '' : j.id };
   setTitle(isNew ? 'Thêm vị trí' : 'Sửa vị trí');
-  setActions('');
+  setActions(`<a class="btn ghost" href="#/jobs" data-act="back-list" data-to="#/jobs">← Quay lại danh sách</a>`);
   const block = (fid, label, arr) => fld(label, area(fid, (arr || []).join('\n'), 5));
-  view().innerHTML = `<form id="editForm" class="panel">
+  view().innerHTML = `<p class="back"><a href="#/jobs" data-act="back-list" data-to="#/jobs">← Quay lại danh sách</a></p><form id="editForm" class="panel">
     ${fld('Chức danh', inp('f-title', j.title, 'required'))}
     ${fld('Mã liên kết', inp('f-id', isNew ? '' : j.id))}
     <div class="split">${fld('Nơi làm việc', inp('f-place', j.place))}${fld('Số lượng', inp('f-qty', j.qty, 'inputmode="numeric"'))}</div>
@@ -768,7 +878,7 @@ function renderJob(id) {
     ${block('f-duties', 'Mô tả công việc', j.duties)}
     ${block('f-req', 'Yêu cầu', j.requirements)}
     ${block('f-ben', 'Quyền lợi', j.benefits)}
-    <div class="formbar"><button class="btn gold" type="submit">Lưu vị trí</button><a class="btn ghost" href="#/jobs">Hủy</a></div>
+    <div class="formbar"><button class="btn gold" type="submit">Lưu vị trí</button><button class="btn ghost" type="button" data-act="back-list" data-to="#/jobs">Hủy</button></div>
   </form>`;
   $('#editForm').onsubmit = async e => {
     e.preventDefault();
@@ -776,8 +886,9 @@ function renderJob(id) {
     if (!item.title) return toast('Nhập chức danh');
     const i = ctx.originalId ? db.jobs.findIndex(x => x.id === ctx.originalId) : -1;
     if (i >= 0) db.jobs[i] = item; else db.jobs.push(item);
-    try { await saveContent(); location.hash = '#/jobs'; } catch (err) { if (!err.auth) toast(err.message); }
+    try { await saveContent(); routeGuard.dirty = false; location.hash = '#/jobs'; } catch (err) { if (!err.auth) toast(err.message); }
   };
+  startEditGuard('#/jobs');
 }
 
 function rowBtns() {
@@ -963,38 +1074,29 @@ function statRow(s) {
 const DEFAULT_LOGO_SVG = h => `<svg viewBox="0 0 40 40" width="${h}" height="${h}"><defs><linearGradient id="lg" x1="0" x2="1"><stop stop-color="#E8C877"/><stop offset="1" stop-color="#B8892F"/></linearGradient></defs><path d="M20 3 36 13v24H4V13z" fill="none" stroke="url(#lg)" stroke-width="2.5"/><path d="M13 30V17h3v5l5-5h4l-6 6 6 7h-4l-5-6v6z" fill="url(#lg)"/></svg>`;
 
 function logoPanel(s) {
-  const name = s.logoName == null ? 'Khang Thịnh' : s.logoName;
-  const sub = s.logoSub == null ? 'LAND' : s.logoSub;
+  const url = (s && s.logo) || '';
   return `<div id="logoBox" class="panel" style="margin:6px 0 16px">
     <h3>Logo &amp; nhận diện</h3>
-    <p class="hint">Tải ảnh PNG / SVG / JPG / WebP (nên dùng nền trong suốt). Để trống thì website dùng logo mặc định. Nhớ bấm <b>Lưu cài đặt</b>.</p>
-    <div class="logo-grid">
-      ${coverBlock('f-logo', s.logo, 'Logo chính (đầu trang)')}
-      ${coverBlock('f-logo-foot', s.logoFooter, 'Logo chân trang (nền tối) – trống = dùng logo chính')}
-      ${coverBlock('f-favicon', s.favicon, 'Biểu tượng tab trình duyệt (favicon, ảnh vuông)')}
+    <p class="hint">Tải một file ảnh logo (PNG, SVG, JPG hoặc WebP, nền trong suốt càng tốt). Bấm <b>Dùng logo mặc định</b> để quay lại logo cũ. Nhớ bấm <b>Lưu cài đặt</b>.</p>
+    <div class="logo-one">
+      <div class="logo-prev"><div class="on-head" id="logoPrevHead"></div></div>
+      <input type="hidden" id="f-logo" value="${esc(url)}">
+      <div class="rowact">
+        <button type="button" class="btn sm" data-act="pick" data-for="f-logo">Tải ảnh lên</button>
+        <button type="button" class="btn sm ghost" data-act="logo-reset">Dùng logo mặc định</button>
+      </div>
+      <input type="file" hidden accept="image/*" data-file="f-logo">
     </div>
-    <div class="logo-opts">
-      <label class="chk"><input type="checkbox" id="f-logo-text" ${s.logoText === false ? '' : 'checked'}> Hiện chữ cạnh logo</label>
-      ${fld('Chữ chính', inp('f-logo-name', name))}
-      ${fld('Chữ phụ (nhỏ, màu vàng)', inp('f-logo-sub', sub))}
-      ${fld('Chiều cao logo (px)', inp('f-logo-h', s.logoHeight || 38, 'type="number" min="20" max="120" step="1"'))}
-    </div>
-    <div class="logo-prev"><div class="on-head" id="logoPrevHead"></div><div class="on-foot" id="logoPrevFoot"></div></div>
-    <small class="muted">Xem trước: trái là đầu trang, phải là chân trang.</small>
-    <div style="margin-top:10px"><button type="button" class="btn sm ghost" data-act="logo-reset">Khôi phục logo mặc định</button></div>
   </div>`;
 }
 
 function paintLogoPrev() {
-  const head = $('#logoPrevHead'), foot = $('#logoPrevFoot');
-  if (!head || !foot) return;
-  const h = Math.min(120, Math.max(20, Number($('#f-logo-h').value) || 38));
-  const logo = $('#f-logo').value.trim(), logoFoot = $('#f-logo-foot').value.trim();
-  const name = $('#f-logo-name').value.trim(), sub = $('#f-logo-sub').value.trim();
-  const text = $('#f-logo-text').checked && (name || sub) ? `<span>${esc(name)}${sub ? `<b>${esc(sub)}</b>` : ''}</span>` : '';
-  const mark = src => src ? `<img src="${esc(src)}" alt="" style="height:${h}px">` : DEFAULT_LOGO_SVG(h);
-  head.innerHTML = `<div class="lgo">${mark(logo)}${text}</div>`;
-  foot.innerHTML = `<div class="lgo">${mark(logoFoot || logo)}${text}</div>`;
+  const head = $('#logoPrevHead');
+  if (!head) return;
+  const logo = ($('#f-logo') && $('#f-logo').value.trim()) || '';
+  head.innerHTML = logo
+    ? `<div class="lgo"><img src="${esc(logo)}" alt="Logo"></div>`
+    : `<div class="lgo">${DEFAULT_LOGO_SVG(38)}<span>Khang Thịnh<b>LAND</b></span></div>`;
 }
 
 function renderSettings() {
@@ -1034,12 +1136,6 @@ function renderSettings() {
       zalo: val('f-zalo'),
       mapQuery: val('f-map'),
       logo: val('f-logo'),
-      logoFooter: val('f-logo-foot'),
-      favicon: val('f-favicon'),
-      logoText: $('#f-logo-text').checked,
-      logoName: $('#f-logo-name').value.trim(),
-      logoSub: $('#f-logo-sub').value.trim(),
-      logoHeight: Number(val('f-logo-h')) || 38,
       heroes: readHeroes(),
       stats: [...document.querySelectorAll('#stats .catrow')].map(row => ({
         n: Number(row.querySelector('[data-k="n"]').value) || 0,
@@ -1213,12 +1309,16 @@ document.body.addEventListener('click', async e => {
     return;
   }
   if (act === 'hist-add') { $('#hist').insertAdjacentHTML('beforeend', histRow({})); return; }
+  if (act === 'back-list') {
+    e.preventDefault();
+    leaveTo(el.dataset.to || routeGuard.backTo);
+    return;
+  }
   if (act === 'logo-reset') {
-    if (!confirm('Khôi phục logo mặc định? (Ảnh đã tải vẫn còn trong Thư viện ảnh)')) return;
-    ['f-logo', 'f-logo-foot', 'f-favicon'].forEach(id => { const i = document.getElementById(id); if (i) { i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); } });
-    $('#f-logo-text').checked = true; $('#f-logo-name').value = 'Khang Thịnh'; $('#f-logo-sub').value = 'LAND'; $('#f-logo-h').value = 38;
+    const i = document.getElementById('f-logo');
+    if (i) { i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); }
     paintLogoPrev();
-    toast('Đã đặt lại. Bấm Lưu cài đặt để áp dụng.');
+    toast('Đã chọn logo mặc định. Bấm Lưu cài đặt để áp dụng.');
     return;
   }
   if (act === 'area-prune') {
@@ -1281,7 +1381,6 @@ document.body.addEventListener('click', async e => {
 
 document.body.addEventListener('change', async e => {
   const f = e.target;
-  if (f.id === 'f-logo-text') paintLogoPrev();
   if (f.dataset && f.dataset.file) {
     const file = f.files && f.files[0];
     f.value = '';
@@ -1337,6 +1436,7 @@ async function enter() {
   db = res.content;
   $('#loginView').hidden = true;
   $('#app').hidden = false;
+  routeGuard.lastHash = location.hash;
   if (!location.hash) location.hash = '#/dashboard';
   else render();
 }
@@ -1353,7 +1453,38 @@ $('#loginForm').onsubmit = async e => {
   }
 };
 
-window.addEventListener('hashchange', () => { if (db) render(); });
+window.addEventListener('hashchange', () => {
+  if (!confirmLeave()) {
+    routeGuard.bypass = true;
+    location.hash = routeGuard.lastHash;
+    return;
+  }
+  routeGuard.lastHash = location.hash;
+  if (db) render();
+});
+
+document.addEventListener('click', e => {
+  if (e.defaultPrevented) return;
+  const a = e.target.closest && e.target.closest('a[href]');
+  if (!a || a.target === '_blank' || a.getAttribute('data-act') === 'back-list') return;
+  const href = a.getAttribute('href') || '';
+  if (href.charAt(0) !== '#' || !routeGuard.dirty || href === location.hash) return;
+  e.preventDefault();
+  e.stopPropagation();
+  leaveTo(href);
+}, true);
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !routeGuard.backTo) return;
+  e.preventDefault();
+  leaveTo(routeGuard.backTo);
+});
+
+window.addEventListener('beforeunload', e => {
+  if (!routeGuard.dirty) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
 
 api('/api/me').then(enter).catch(err => {
   showLogin();
