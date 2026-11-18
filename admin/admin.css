@@ -249,3 +249,4 @@ a.lead-proj small{color:var(--muted);font-weight:500}
   .nthumb,.nthumb img,.nph{width:100px;height:76px}
   .nacts{grid-column:1/-1;justify-content:flex-start}
 }
+.news-edit-main #f-excerpt{min-height:96px;resize:vertical}

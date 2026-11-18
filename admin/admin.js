@@ -826,6 +826,7 @@ function renderNews(id) {
   <form id="editForm" class="news-edit">
     <div class="panel news-edit-main">
       ${fld('Tiêu đề', inp('f-title', n.title, 'required'))}
+      ${fld('Tóm tắt (hiện ở danh sách, Enter để xuống dòng)', area('f-excerpt', n.excerpt, 4))}
       ${richBlock('f-body', n.body, 'Nội dung bài viết', 'Dán toàn bộ bài, dùng thanh công cụ để tạo tiêu đề, in đậm, danh sách, liên kết và ảnh. Bài cũ dạng thuần văn bản sẽ được chuyển thành đoạn văn khi mở.')}
     </div>
     <div class="panel news-edit-side">
@@ -833,7 +834,6 @@ function renderNews(id) {
       ${fld('Ngày hiển thị', inp('f-date', n.date, 'placeholder="28/10/2026"'))}
       ${fld('Mã liên kết (để trống sẽ tạo từ tiêu đề)', inp('f-id', isNew ? '' : n.id))}
       ${coverBlock('f-image', n.image, 'Ảnh bìa')}
-      ${fld('Tóm tắt (hiện ở danh sách, Enter để xuống dòng)', area('f-excerpt', n.excerpt, 4))}
       <div class="formbar"><button class="btn gold" type="submit">Lưu</button><button class="btn ghost" type="button" data-act="back-list" data-to="#/news">Hủy</button>${isNew ? '' : `<a class="btn ghost" target="_blank" rel="noopener" href="/tin-tuc-chi-tiet.html?id=${esc(n.id)}">Xem</a>`}</div>
     </div>
   </form>`;
