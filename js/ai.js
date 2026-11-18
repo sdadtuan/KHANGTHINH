@@ -131,7 +131,7 @@ const Chat = {
     const exact = filterProjects(f), list = (exact.length ? exact.map(p => ({ p, score: scoreProject(p, f) })).sort((a, b) => b.score - a.score) : rankProjects(f)).slice(0, 3);
     if (list[0]) this.projectId = list[0].p.id;
     const head = title || (exact.length ? `Tôi hiểu bạn cần: <b>${describeFilters(f)}</b>. Có ${exact.length} dự án phù hợp:` : `Chưa có dự án khớp hoàn toàn <b>${describeFilters(f)}</b>, đây là lựa chọn gần nhất:`);
-    const cards = list.map(({ p, score }) => `<a class="mini" href="du-an-chi-tiet.html?id=${p.id}"><img src="${p.thumb}" alt=""><span><b>${p.name}</b><small>${p.type} · ${p.area}</small><small>${fmtTy(p.priceFrom)} – ${fmtTy(p.priceTo)}</small></span><em>${score}%</em></a>`).join('');
+    const cards = list.map(({ p, score }) => `<a class="mini" href="du-an-chi-tiet.html?id=${p.id}"><img src="${p.thumb || p.image || ''}" alt=""><span><b>${p.name}</b><small>${p.type} · ${p.area}</small><small>${fmtTy(p.priceFrom)} – ${fmtTy(p.priceTo)}</small></span><em>${score}%</em></a>`).join('');
     this.bot(head + cards + 'Bạn muốn nhận bảng giá chi tiết không?', ['Nhận bảng giá', 'So sánh dự án', 'Tính khoản vay']);
   }
 };

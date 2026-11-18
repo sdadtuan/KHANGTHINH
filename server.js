@@ -266,7 +266,15 @@ function normalize(input) {
       { n: 45, label: 'Dự án phân phối' },
       { n: 18500, label: 'Khách hàng' },
       { n: 1200, label: 'Chuyên viên' }
-    ]
+    ],
+    logoUrl: '',
+    logoDarkUrl: '',
+    favicon: '',
+    logoBrand: '',
+    logoSub: '',
+    tagline: '',
+    footerBlurb: '',
+    logoShowText: true
   }, c.settings || {});
   settings.hotline = String(settings.hotline || '').trim() || '0900 000 000';
   settings.hotlineTel = String(settings.hotline).replace(/\D/g, '');
@@ -281,6 +289,14 @@ function normalize(input) {
     n: Number(s && s.n) || 0,
     label: String((s && s.label) || '').trim()
   })).filter(s => s.label);
+  settings.logoUrl = String(settings.logoUrl || '').trim();
+  settings.logoDarkUrl = String(settings.logoDarkUrl || '').trim();
+  settings.favicon = String(settings.favicon || '').trim();
+  settings.logoBrand = String(settings.logoBrand || '').trim();
+  settings.logoSub = String(settings.logoSub || '').trim();
+  settings.tagline = String(settings.tagline || '').trim();
+  settings.footerBlurb = String(settings.footerBlurb || '').trim();
+  settings.logoShowText = !(settings.logoShowText === false || settings.logoShowText === 'false' || settings.logoShowText === 0);
 
   const rawStatuses = (Array.isArray(c.statuses) && c.statuses.length ? c.statuses : [
     { id: 'dang-mo-ban', label: 'Đang mở bán' },
@@ -343,7 +359,7 @@ function normalize(input) {
   });
   assignIds(projects, 'name');
 
-  const areas = uniq([].concat(c.areas || [], projects.map(p => p.area)));
+  const areas = uniq([].concat(c.areas || [], projects.map(p => p.area).filter(Boolean)));
   const types = uniq([].concat(c.types || [], projects.map(p => p.type)));
 
   let news = (Array.isArray(c.news) ? c.news : []).map(n => ({
@@ -410,12 +426,13 @@ function writeAtomic(file, text) {
 function writeDataJs(c) {
   const status = {};
   c.statuses.forEach(s => { status[s.id] = s.label; });
+  const areasPublic = c.areas.filter(a => c.projects.some(p => p.area === a));
   const body = [
     '/* Sinh bởi admin Node (server.js). Sửa nội dung tại /admin */',
     'const U = (id, w = 1200) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=75`;',
     'const STATUS = ' + JSON.stringify(status, null, 1) + ';',
     'const PROJECTS = ' + JSON.stringify(c.projects, null, 1) + ';',
-    'const AREAS = ' + JSON.stringify(c.areas, null, 1) + ';',
+    'const AREAS = ' + JSON.stringify(areasPublic, null, 1) + ';',
     'const TYPES = ' + JSON.stringify(c.types, null, 1) + ';',
     'const NEWS = ' + JSON.stringify(c.news, null, 1) + ';',
     'const JOBS = ' + JSON.stringify(c.jobs, null, 1) + ';',
@@ -794,8 +811,8 @@ async function handleApi(req, res, pathname, url) {
     if (!file || !file.data.length) return send(res, 400, { error: 'Thiếu file ảnh' });
     let ext = path.extname(file.filename).toLowerCase();
     if (ext === '.jpeg') ext = '.jpg';
-    const ok = ['.jpg', '.png', '.webp', '.gif', '.svg', '.avif'];
-    if (!ok.includes(ext)) return send(res, 400, { error: 'Chỉ nhận ảnh jpg, png, webp, gif, svg, avif' });
+    const ok = ['.jpg', '.png', '.webp', '.gif', '.svg', '.avif', '.ico'];
+    if (!ok.includes(ext)) return send(res, 400, { error: 'Chỉ nhận ảnh jpg, png, webp, gif, svg, avif, ico' });
     const name = Date.now().toString(36) + '-' + crypto.randomBytes(4).toString('hex') + ext;
     fs.mkdirSync(UPLOADS, { recursive: true });
     fs.writeFileSync(path.join(UPLOADS, name), file.data);
