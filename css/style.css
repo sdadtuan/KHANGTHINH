@@ -308,3 +308,15 @@ html{overflow-x:clip}.cmp-bar:not(.show){visibility:hidden}
   .nfeat-body{padding:20px}
   .article h1{font-size:28px}
 }
+
+/* Card text clamp: giữ chiều cao đều, bổ trợ cho clip() */
+.pbody small,.ncard .ntag,.area b{
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden
+}
+.pbody h3,.pbody h3 a,.ncard h3,.ncard h3 a{
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden
+}
+.pbody p,.ncard-body>p,.ncard p{
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden
+}
+.area b{-webkit-line-clamp:2}
