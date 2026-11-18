@@ -610,13 +610,22 @@ function catBox(id, values) {
   return `<div id="${id}" class="catlist">${values.map(v => `<div class="catrow" data-old="${esc(v)}"><input value="${esc(v)}">${rowBtns()}</div>`).join('')}</div>`;
 }
 
+function areaCatBox(values) {
+  const projects = db.projects || [];
+  return `<div id="areas" class="catlist">${values.map(v => {
+    const n = projects.filter(p => p.area === v).length;
+    const hint = n ? `${n} dự án` : 'Không có dự án · có thể xóa';
+    return `<div class="catrow area-row" data-old="${esc(v)}"><input value="${esc(v)}"><span class="areacnt ${n ? '' : 'warn'}">${hint}</span>${rowBtns()}</div>`;
+  }).join('')}</div>`;
+}
+
 function renderCategories() {
   setTitle('Danh mục');
   setActions('');
   const statuses = db.statuses.map(s => `<div class="catrow two" data-old="${esc(s.id)}"><input data-k="id" value="${esc(s.id)}" aria-label="Mã"><input data-k="label" value="${esc(s.label)}" aria-label="Tên">${rowBtns()}</div>`).join('');
-  view().innerHTML = `<form id="editForm"><p class="hint">Đổi tên danh mục sẽ cập nhật các dự án / tin đang dùng tên cũ. Mục đang được dùng sẽ không bị xóa.</p>
+  view().innerHTML = `<form id="editForm"><p class="hint">Đổi tên danh mục sẽ cập nhật các dự án / tin đang dùng tên cũ. Khu vực đang có dự án không thể xóa hẳn (server giữ lại khi lưu). Khu vực không có dự án có thể xóa bằng nút ✕ — trang chủ chỉ hiện khu vực có dự án.</p>
     <div class="cols3">
-      <div class="panel"><h3>Khu vực</h3>${catBox('areas', db.areas)}<button type="button" class="btn sm" data-act="cat-add" data-list="areas" style="margin-top:8px">Thêm khu vực</button></div>
+      <div class="panel"><h3>Khu vực</h3>${areaCatBox(db.areas)}<button type="button" class="btn sm" data-act="cat-add" data-list="areas" style="margin-top:8px">Thêm khu vực</button></div>
       <div class="panel"><h3>Loại hình</h3>${catBox('types', db.types)}<button type="button" class="btn sm" data-act="cat-add" data-list="types" style="margin-top:8px">Thêm loại hình</button></div>
       <div class="panel"><h3>Chuyên mục tin</h3>${catBox('newsCats', db.newsCats)}<button type="button" class="btn sm" data-act="cat-add" data-list="newsCats" style="margin-top:8px">Thêm chuyên mục</button></div>
     </div>
@@ -728,12 +737,59 @@ function statRow(s) {
   return `<div class="catrow two"><input data-k="n" inputmode="numeric" value="${esc(s.n)}" placeholder="Số"><input data-k="label" value="${esc(s.label || '')}" placeholder="Nhãn, ví dụ Năm kinh nghiệm">${rowBtns()}</div>`;
 }
 
+function logoSettingsFromForm() {
+  return {
+    logoUrl: val('f-logo'),
+    logoDarkUrl: val('f-logo-dark'),
+    favicon: val('f-favicon'),
+    logoBrand: val('f-logo-brand'),
+    logoSub: val('f-logo-sub'),
+    footerBlurb: $('#f-footer-blurb').value.trim(),
+    logoShowText: $('#f-logo-show').checked,
+    siteName: val('f-site')
+  };
+}
+
+function paintLogoPreview() {
+  const box = $('#logoPreview');
+  if (!box) return;
+  const s = logoSettingsFromForm();
+  const main = s.logoBrand || s.siteName || 'Khang Thịnh';
+  const sub = s.logoSub || 'LAND';
+  const lightImg = s.logoUrl;
+  const darkImg = s.logoDarkUrl || s.logoUrl;
+  const mark = url => url
+    ? `<img src="${esc(url)}" alt="" class="logo-prev-img">`
+    : '<span class="logo-prev-svg" aria-hidden="true">KT</span>';
+  const text = s.logoShowText ? `<span class="logo-prev-txt">${esc(main)}<b>${esc(sub)}</b></span>` : '';
+  box.innerHTML = `<div class="logo-prev"><span class="lbl">Header</span><div class="logo-prev-bar">${mark(lightImg)}${text}</div></div>
+    <div class="logo-prev"><span class="lbl">Footer (nền tối)</span><div class="logo-prev-bar dark">${mark(darkImg)}${text}</div></div>
+    <div class="logo-prev"><span class="lbl">Favicon</span><div class="logo-prev-fav">${s.favicon ? `<img src="${esc(s.favicon)}" alt="">` : '<span class="muted">Mặc định SVG</span>'}</div></div>`;
+}
+
 function renderSettings() {
   setTitle('Cài đặt');
   setActions('');
-  const s = db.settings;
-  view().innerHTML = `<form id="editForm" class="panel">
-    <div class="split">${fld('Tên website', inp('f-site', s.siteName))}${fld('Tên công ty', inp('f-co', s.company))}</div>
+  const s = db.settings || {};
+  const showText = s.logoShowText !== false;
+  view().innerHTML = `<form id="editForm">
+    <div class="panel">
+    <h3>Thương hiệu & logo</h3>
+    <p class="hint">Tải PNG, SVG, JPG, WebP (và ICO cho favicon). Để trống logo sẽ dùng biểu tượng SVG mặc định. Logo footer dùng bản riêng nếu có; không thì dùng logo chính.</p>
+    <div class="split">
+      <div>${coverBlock('f-logo', s.logoUrl, 'Logo chính (header)')}</div>
+      <div>${coverBlock('f-logo-dark', s.logoDarkUrl, 'Logo footer / nền tối (tuỳ chọn)')}</div>
+    </div>
+    <div class="split">
+      <div>${coverBlock('f-favicon', s.favicon, 'Favicon (tuỳ chọn)')}</div>
+      <label class="check" style="align-self:end;margin:0"><input type="checkbox" id="f-logo-show" ${showText ? 'checked' : ''}><span>Hiển thị chữ tên thương hiệu cạnh logo</span></label>
+    </div>
+    <div class="split">${fld('Dòng tên (trên)', inp('f-logo-brand', s.logoBrand, 'placeholder="Ví dụ: Khang Thịnh" data-logo-prev'))}${fld('Dòng phụ (dưới, vàng)', inp('f-logo-sub', s.logoSub, 'placeholder="LAND" data-logo-prev'))}</div>
+    ${fld('Mô tả ngắn dưới logo ở footer', area('f-footer-blurb', s.footerBlurb, 2))}
+    <div id="logoPreview" class="logo-preview-wrap"></div>
+    <div class="rowact" style="margin-bottom:16px"><button type="button" class="btn sm ghost" data-act="logo-reset">Khôi phục logo mặc định</button></div>
+    <h3>Liên hệ & website</h3>
+    <div class="split">${fld('Tên website', inp('f-site', s.siteName, 'data-logo-prev'))}${fld('Tên công ty', inp('f-co', s.company))}</div>
     <div class="split">${fld('Hotline hiển thị', inp('f-hot', s.hotline))}${fld('Email', inp('f-mail', s.email))}</div>
     ${fld('Địa chỉ', inp('f-addr', s.address))}
     <div class="split">${fld('Giờ làm việc', inp('f-hours', s.hours))}${fld('Zalo (link)', inp('f-zalo', s.zalo))}</div>
@@ -742,6 +798,7 @@ function renderSettings() {
     <div id="stats" class="catlist">${(s.stats || []).map(statRow).join('')}</div>
     <button type="button" class="btn sm" data-act="stat-add" style="margin:8px 0 16px">Thêm số liệu</button>
     <button class="btn gold" type="submit">Lưu cài đặt</button>
+    </div>
   </form>
   <form id="passForm" class="panel" style="margin-top:14px">
     <h3>Đổi mật khẩu quản trị</h3>
@@ -750,6 +807,11 @@ function renderSettings() {
     ${fld('Nhập lại', '<input id="p-again" type="password" autocomplete="new-password" minlength="6">')}
     <button class="btn" type="submit">Đổi mật khẩu</button>
   </form>`;
+  paintLogoPreview();
+  view().querySelectorAll('[data-logo-prev], #f-logo-show, #f-footer-blurb').forEach(el => {
+    el.addEventListener('input', paintLogoPreview);
+    el.addEventListener('change', paintLogoPreview);
+  });
   $('#editForm').onsubmit = async e => {
     e.preventDefault();
     db.settings = Object.assign({}, db.settings, {
@@ -761,6 +823,13 @@ function renderSettings() {
       hours: val('f-hours'),
       zalo: val('f-zalo'),
       mapQuery: val('f-map'),
+      logoUrl: val('f-logo'),
+      logoDarkUrl: val('f-logo-dark'),
+      favicon: val('f-favicon'),
+      logoBrand: val('f-logo-brand'),
+      logoSub: val('f-logo-sub'),
+      footerBlurb: $('#f-footer-blurb').value.trim(),
+      logoShowText: $('#f-logo-show').checked,
       stats: [...document.querySelectorAll('#stats .catrow')].map(row => ({
         n: Number(row.querySelector('[data-k="n"]').value) || 0,
         label: row.querySelector('[data-k="label"]').value.trim()
@@ -880,6 +949,21 @@ document.body.addEventListener('click', async e => {
   if (act === 'clear-img') {
     const input = document.getElementById(el.dataset.for);
     if (input) { input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); }
+    if (['f-logo', 'f-logo-dark', 'f-favicon'].includes(el.dataset.for)) paintLogoPreview();
+    return;
+  }
+  if (act === 'logo-reset') {
+    const clearIds = ['f-logo', 'f-logo-dark', 'f-favicon', 'f-logo-brand', 'f-logo-sub'];
+    clearIds.forEach(id => {
+      const input = document.getElementById(id);
+      if (input) { input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); }
+    });
+    const blurb = $('#f-footer-blurb');
+    if (blurb) blurb.value = '';
+    const show = $('#f-logo-show');
+    if (show) show.checked = true;
+    paintLogoPreview();
+    toast('Đã đặt lại form. Bấm Lưu cài đặt để áp dụng lên website.');
     return;
   }
   if (act === 'gal-add') { const f = $('#galFile'); if (f) f.click(); return; }
@@ -912,7 +996,11 @@ document.body.addEventListener('click', async e => {
   }
   if (act === 'cat-add') {
     const list = document.getElementById(el.dataset.list);
-    if (list) list.insertAdjacentHTML('beforeend', `<div class="catrow" data-old=""><input value="" placeholder="Tên mới">${rowBtns()}</div>`);
+    if (list) {
+      const extra = list.id === 'areas' ? '<span class="areacnt warn">Mới</span>' : '';
+      const cls = list.id === 'areas' ? 'catrow area-row' : 'catrow';
+      list.insertAdjacentHTML('beforeend', `<div class="${cls}" data-old=""><input value="" placeholder="Tên mới">${extra}${rowBtns()}</div>`);
+    }
     return;
   }
   if (act === 'status-add') {
@@ -987,6 +1075,7 @@ document.body.addEventListener('change', async e => {
       const url = await uploadOne(file);
       const box = document.getElementById(f.dataset.file);
       if (box) { box.value = url; box.dispatchEvent(new Event('input', { bubbles: true })); }
+      if (['f-logo', 'f-logo-dark', 'f-favicon'].includes(f.dataset.file)) paintLogoPreview();
       toast('Đã tải ảnh');
     } catch (err) { if (!err.auth) toast(err.message); }
     return;
@@ -1025,6 +1114,7 @@ document.body.addEventListener('input', e => {
     const wrap = img && img.parentElement;
     if (img) img.src = t.value.trim();
     if (wrap) wrap.classList.toggle('empty', !t.value.trim());
+    if (t.id === 'f-logo' || t.id === 'f-logo-dark' || t.id === 'f-favicon') paintLogoPreview();
   }
 });
 

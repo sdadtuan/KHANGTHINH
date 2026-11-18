@@ -23,9 +23,51 @@ const NAV = [['index.html', 'Trang chủ'], ['gioi-thieu.html', 'Giới thiệu'
   ...TYPES.map(t => ['du-an.html?type=' + encodeURIComponent(t), t])
 ]],
  ['tu-van-ai.html', 'AI thực chiến', [['tu-van-ai.html', 'AI tư vấn tìm nhà'], ['cong-cu-tai-chinh.html', 'Công cụ tài chính'], ['so-sanh.html', 'So sánh dự án'], ['#chat', 'Chat với trợ lý AI']]], ['tin-tuc.html', 'Tin tức'], ['tuyen-dung.html', 'Tuyển dụng'], ['lien-he.html', 'Liên hệ']];
-const LOGO = `<a href="index.html" class="logo"><svg viewBox="0 0 40 40" width="38" height="38"><defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#E8C877"/><stop offset="1" stop-color="#B8892F"/></linearGradient></defs><path d="M20 3 36 13v24H4V13z" fill="none" stroke="url(#g)" stroke-width="2.5"/><path d="M13 30V17h3v5l5-5h4l-6 6 6 7h-4l-5-6v6z" fill="url(#g)"/></svg><span>Khang Thịnh<b>LAND</b></span></a>`;
+const LOGO_SVG = `<svg class="logo-mark" viewBox="0 0 40 40" width="38" height="38" aria-hidden="true"><defs><linearGradient id="kt-logo-g" x1="0" x2="1"><stop stop-color="#E8C877"/><stop offset="1" stop-color="#B8892F"/></linearGradient></defs><path d="M20 3 36 13v24H4V13z" fill="none" stroke="url(#kt-logo-g)" stroke-width="2.5"/><path d="M13 30V17h3v5l5-5h4l-6 6 6 7h-4l-5-6v6z" fill="url(#kt-logo-g)"/></svg>`;
+function projectThumb(p) { return (p && (p.thumb || p.image)) || ''; }
+function brandParts(s) {
+  if (s.logoBrand) return { main: s.logoBrand, sub: s.logoSub || 'LAND' };
+  const name = String(s.siteName || 'Khang Thịnh Land').trim();
+  const bits = name.split(/\s+/).filter(Boolean);
+  if (bits.length > 1) {
+    const sub = s.logoSub || bits.pop();
+    return { main: bits.join(' '), sub };
+  }
+  return { main: name, sub: s.logoSub || 'LAND' };
+}
+function logoHtml(variant) {
+  const s = site();
+  const { main, sub } = brandParts(s);
+  const dark = variant === 'dark';
+  const url = (dark && s.logoDarkUrl) ? s.logoDarkUrl : s.logoUrl;
+  const mark = url
+    ? `<img class="logo-img" src="${esc(url)}" alt="${esc(main)}" width="38" height="38" loading="eager" decoding="async">`
+    : LOGO_SVG;
+  const text = s.logoShowText !== false
+    ? `<span>${esc(main)}<b>${esc(sub)}</b></span>`
+    : '';
+  return `<a href="index.html" class="logo">${mark}${text}</a>`;
+}
+function areasWithProjects() {
+  if (typeof PROJECTS === 'undefined') return [];
+  const fromList = typeof AREAS !== 'undefined' ? AREAS : [];
+  const merged = fromList.length ? fromList : [...new Set(PROJECTS.map(p => p.area).filter(Boolean))];
+  return merged.filter(a => PROJECTS.some(p => p.area === a));
+}
+function applyFavicon() {
+  const fav = site().favicon;
+  if (!fav) return;
+  let link = document.querySelector('link[rel="icon"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  link.href = fav;
+}
 function card(p) {
-  return `<article class="pcard reveal"><a href="du-an-chi-tiet.html?id=${p.id}" class="pimg"><img loading="lazy" src="${p.thumb}" alt="${p.name}"><span class="badge s-${p.status}">${STATUS[p.status]}</span>${p.hot ? '<span class="hot">HOT</span>' : ''}</a>
+  const thumb = projectThumb(p);
+  return `<article class="pcard reveal"><a href="du-an-chi-tiet.html?id=${p.id}" class="pimg"><img loading="lazy" src="${esc(thumb)}" alt="${esc(p.name)}"><span class="badge s-${p.status}">${STATUS[p.status]}</span>${p.hot ? '<span class="hot">HOT</span>' : ''}</a>
   <div class="pbody"><small>${p.type} · ${p.area}</small><h3><a href="du-an-chi-tiet.html?id=${p.id}">${p.name}</a></h3><p>${p.desc}</p>
   <div class="pmeta"><span>${p.beds && p.beds.length ? p.beds.join('–') + ' PN' : 'Nền đất'}</span><span>Bàn giao: ${p.handover}</span></div>
   <div class="pfoot"><strong>${fmtTy(p.priceFrom)} – ${fmtTy(p.priceTo)}</strong><label class="cmp"><input type="checkbox" data-cmp="${p.id}"> So sánh</label></div></div></article>`;
@@ -34,10 +76,12 @@ function layout() {
   const s = site();
   const page = document.body.dataset.page, cur = location.pathname.split('/').pop() || 'index.html';
   const nav = NAV.map(([h, t, sub]) => `<li class="${sub ? 'has-sub' : ''}"><a href="${h}" class="${cur === h.split('?')[0] ? 'active' : ''}" ${h === '#chat' ? 'data-open-chat' : ''}>${esc(t)}${sub ? ' <i>▾</i>' : ''}</a>${sub ? `<ul class="sub">${sub.map(([sh, st]) => `<li><a href="${sh}" ${sh === '#chat' ? 'data-open-chat' : ''}>${esc(st)}</a></li>`).join('')}</ul>` : ''}</li>`).join('');
+  applyFavicon();
+  const footerAbout = s.footerBlurb || 'Nhà phân phối bất động sản chuyên nghiệp – minh bạch pháp lý, tư vấn bằng dữ liệu & AI.';
   document.body.insertAdjacentHTML('afterbegin', `<div class="topbar"><div class="container"><span>📍 ${esc(s.address)}</span><span><a href="tel:${esc(s.hotlineTel)}">☎ ${esc(s.hotline)}</a> · <a href="mailto:${esc(s.email)}">${esc(s.email)}</a></span></div></div>
-  <header class="header"><div class="container nav-wrap">${LOGO}<nav><ul class="menu">${nav}</ul></nav>
+  <header class="header"><div class="container nav-wrap">${logoHtml()}<nav><ul class="menu">${nav}</ul></nav>
   <div class="nav-act"><button class="icon-btn" id="themeBtn" aria-label="Đổi giao diện sáng/tối">◐</button><a href="lien-he.html" class="btn btn-gold sm hide-m">Nhận tư vấn</a><button class="icon-btn burger" aria-label="Menu">☰</button></div></div></header>`);
-  const footer = `<footer class="footer"><div class="container fgrid"><div>${LOGO}<p>Nhà phân phối bất động sản chuyên nghiệp – minh bạch pháp lý, tư vấn bằng dữ liệu & AI.</p><div class="social"><a href="#" aria-label="Facebook">f</a><a href="#" aria-label="YouTube">▶</a><a href="${esc(s.zalo)}" aria-label="Zalo">Z</a></div></div>
+  const footer = `<footer class="footer"><div class="container fgrid"><div>${logoHtml('dark')}<p>${esc(footerAbout)}</p><div class="social"><a href="#" aria-label="Facebook">f</a><a href="#" aria-label="YouTube">▶</a><a href="${esc(s.zalo)}" aria-label="Zalo">Z</a></div></div>
   <div><h4>Dự án</h4>${Object.entries(STATUS).map(([id, label]) => `<a href="du-an.html?status=${encodeURIComponent(id)}">${esc(label)}</a>`).join('')}</div>
   <div><h4>AI thực chiến</h4><a href="tu-van-ai.html">AI tư vấn tìm nhà</a><a href="cong-cu-tai-chinh.html">Tính vay & ROI</a><a href="so-sanh.html">So sánh dự án</a></div>
   <div><h4>Liên hệ</h4><a href="tel:${esc(s.hotlineTel)}">Hotline: ${esc(s.hotline)}</a><a href="mailto:${esc(s.email)}">${esc(s.email)}</a><a href="tuyen-dung.html">Tuyển dụng</a><a href="lien-he.html">Văn phòng</a><a href="admin/">Quản trị</a></div></div>
@@ -88,14 +132,25 @@ const Pages = {
     const hot = PROJECTS.filter(p => p.hot);
     $('#hotGrid').innerHTML = hot.slice(0, 6).map(card).join('');
     $('#newsGrid').innerHTML = NEWS.slice(0, 3).map(newsCard).join('');
-    $('#areaGrid').innerHTML = AREAS.map((a, i) => { const ps = PROJECTS.filter(p => p.area === a); return `<a class="area reveal" href="du-an.html?area=${encodeURIComponent(a)}"><img loading="lazy" src="${ps[0].thumb}" alt="${a}"><span><b>${a}</b>${ps.length} dự án</span></a>`; }).join('');
+    const areas = areasWithProjects();
+    const grid = $('#areaGrid');
+    const areaSection = grid && grid.closest('section');
+    if (grid) {
+      grid.innerHTML = areas.map(a => {
+        const ps = PROJECTS.filter(p => p.area === a);
+        const thumb = projectThumb(ps[0]);
+        if (!thumb) return '';
+        return `<a class="area reveal" href="du-an.html?area=${encodeURIComponent(a)}"><img loading="lazy" src="${esc(thumb)}" alt="${esc(a)}"><span><b>${esc(a)}</b>${ps.length} dự án</span></a>`;
+      }).join('');
+    }
+    if (areaSection) areaSection.hidden = !areas.length;
     smartSearch($('#heroSearch')); $$('.hint').forEach(h => h.onclick = () => { $('#heroSearch input').value = h.textContent; $('#heroSearch').requestSubmit(); });
     $$('.counter').forEach(c => { const n = +c.dataset.n; let i = 0; const t = setInterval(() => { i += Math.ceil(n / 40); if (i >= n) { i = n; clearInterval(t); } c.textContent = i.toLocaleString('vi-VN'); }, 30); });
   },
   projects() {
     const tabBox = $('.tabs'); if (tabBox) tabBox.innerHTML = `<button data-s="">Tất cả</button>` + Object.entries(STATUS).map(([id, label]) => `<button data-s="${esc(id)}">${esc(label)}</button>`).join('');
     const sel = (id, opts) => $(id).innerHTML += opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('');
-    sel('#fArea', AREAS.map(a => [a, a])); sel('#fType', TYPES.map(a => [a, a])); sel('#fStatus', Object.entries(STATUS));
+    sel('#fArea', areasWithProjects().map(a => [a, a])); sel('#fType', TYPES.map(a => [a, a])); sel('#fStatus', Object.entries(STATUS));
     const st = { area: qs('area') || '', type: qs('type') || '', status: qs('status') || '', price: '', beds: '', sort: 'hot' };
     const q = qs('q'); if (q) { $('#nlq').value = q; Object.assign(st, applyNL(q)); }
     function applyNL(q) { const f = parseQuery(q); $('#nlInfo').innerHTML = Object.keys(f).length ? `🤖 AI hiểu: <b>${describeFilters(f)}</b>` : '🤖 Chưa nhận diện được tiêu chí, hãy thử “căn hộ 2PN dưới 3 tỷ ở Thủ Đức”'; st.nl = f;
@@ -169,7 +224,7 @@ const Pages = {
   },
   quiz() {
     const steps = [['purpose', 'Bạn mua bất động sản để làm gì?', [['o', '🏡 Để ở'], ['dau-tu', '📈 Đầu tư / cho thuê']]], ['budget', 'Ngân sách dự kiến của bạn?', [['0-2', 'Dưới 2 tỷ'], ['2-4', '2 – 4 tỷ'], ['4-8', '4 – 8 tỷ'], ['8-15', '8 – 15 tỷ'], ['15-50', 'Trên 15 tỷ']]],
-      ['area', 'Khu vực bạn quan tâm?', [['', 'Không giới hạn'], ...AREAS.map(a => [a, a])]], ['beds', 'Số phòng ngủ mong muốn?', [['1', '1 PN / Studio'], ['2', '2 PN'], ['3', '3 PN'], ['4', '4+ PN'], ['0', 'Không quan trọng']]]];
+      ['area', 'Khu vực bạn quan tâm?', [['', 'Không giới hạn'], ...areasWithProjects().map(a => [a, a])]], ['beds', 'Số phòng ngủ mong muốn?', [['1', '1 PN / Studio'], ['2', '2 PN'], ['3', '3 PN'], ['4', '4+ PN'], ['0', 'Không quan trọng']]]];
     const ans = {}; let i = 0; const box = $('#quiz');
     function show() {
       if (i >= steps.length) return result(); const [k, q, opts] = steps[i];
@@ -179,7 +234,7 @@ const Pages = {
     function result() {
       const [mn, mx] = ans.budget.split('-').map(Number), f = { purpose: ans.purpose, min: mn, max: mx, area: ans.area || undefined, beds: +ans.beds || undefined };
       const r = rankProjects(f, 4);
-      box.innerHTML = `<div class="qprog"><i style="width:100%"></i></div><h2>✦ AI đề xuất cho bạn</h2><p class="muted">Tiêu chí: ${describeFilters(f)}</p><div class="results">${r.map(({ p, score }, k) => `<div class="rcard reveal in"><div class="ring" style="--v:${score}"><b>${score}%</b><small>phù hợp</small></div><img src="${p.thumb}" alt=""><div><small>#${k + 1} · ${p.type} · ${p.area}</small><h3>${p.name}</h3><p>${fmtTy(p.priceFrom)} – ${fmtTy(p.priceTo)} · ${STATUS[p.status]}</p><p class="why">${why(p, f)}</p><a class="btn btn-gold sm" href="du-an-chi-tiet.html?id=${p.id}">Xem dự án</a> <label class="cmp"><input type="checkbox" data-cmp="${p.id}"> So sánh</label></div></div>`).join('')}</div>
+      box.innerHTML = `<div class="qprog"><i style="width:100%"></i></div><h2>✦ AI đề xuất cho bạn</h2><p class="muted">Tiêu chí: ${describeFilters(f)}</p><div class="results">${r.map(({ p, score }, k) => `<div class="rcard reveal in"><div class="ring" style="--v:${score}"><b>${score}%</b><small>phù hợp</small></div><img src="${esc(projectThumb(p))}" alt=""><div><small>#${k + 1} · ${p.type} · ${p.area}</small><h3>${p.name}</h3><p>${fmtTy(p.priceFrom)} – ${fmtTy(p.priceTo)} · ${STATUS[p.status]}</p><p class="why">${why(p, f)}</p><a class="btn btn-gold sm" href="du-an-chi-tiet.html?id=${p.id}">Xem dự án</a> <label class="cmp"><input type="checkbox" data-cmp="${p.id}"> So sánh</label></div></div>`).join('')}</div>
       <div class="glass-card mt"><h3>Nhận báo cáo chi tiết qua Zalo</h3>${leadForm('quiz-ai', 'Gửi cho tôi', r.map(x => x.p.id))}</div><button class="btn btn-ghost mt" id="redo">↻ Làm lại</button>`;
       $('#redo').onclick = () => { i = 0; show(); }; bindLeadForms(); Cmp.ui();
     }
@@ -201,7 +256,7 @@ const Pages = {
   },
   compare() {
     const pick = $('#cmpPick'); pick.innerHTML = PROJECTS.map(p => `<label class="chip"><input type="checkbox" data-cmp="${p.id}"> ${p.name}</label>`).join('');
-    const rows = [['Ảnh', p => `<img src="${p.thumb}" alt="">`], ['Loại hình', p => p.type], ['Khu vực', p => p.area], ['Giá', p => `${fmtTy(p.priceFrom)} – ${fmtTy(p.priceTo)}`], ['Phòng ngủ', p => p.beds.join(', ') || '—'], ['Trạng thái', p => STATUS[p.status]], ['Chủ đầu tư', p => p.dev], ['Quy mô', p => p.scale], ['Bàn giao', p => p.handover], ['Lợi suất thuê', p => p.yield ? p.yield + '%' : '—', 'yield'], ['Tăng giá kỳ vọng', p => p.growth + '%/năm', 'growth'], ['Điểm đầu tư AI', p => Math.round((p.yield + p.growth) * 6) + '/100', 'score']];
+    const rows = [['Ảnh', p => `<img src="${esc(projectThumb(p))}" alt="">`], ['Loại hình', p => p.type], ['Khu vực', p => p.area], ['Giá', p => `${fmtTy(p.priceFrom)} – ${fmtTy(p.priceTo)}`], ['Phòng ngủ', p => (p.beds || []).join(', ') || '—'], ['Trạng thái', p => STATUS[p.status]], ['Chủ đầu tư', p => p.dev], ['Quy mô', p => p.scale], ['Bàn giao', p => p.handover], ['Lợi suất thuê', p => p.yield ? p.yield + '%' : '—', 'yield'], ['Tăng giá kỳ vọng', p => p.growth + '%/năm', 'growth'], ['Điểm đầu tư AI', p => Math.round((p.yield + p.growth) * 6) + '/100', 'score']];
     function render() { const ps = Cmp.get().map(id => PROJECTS.find(p => p.id === id)).filter(Boolean);
       if (ps.length < 2) { $('#cmpTable').innerHTML = '<div class="empty">Chọn ít nhất 2 dự án (tối đa 3) để so sánh.</div>'; return; }
       const best = { yield: Math.max(...ps.map(p => p.yield)), growth: Math.max(...ps.map(p => p.growth)), score: Math.max(...ps.map(p => p.yield + p.growth)) };
