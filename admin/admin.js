@@ -111,6 +111,230 @@ function coverBlock(inputId, url, label) {
     <input type="file" hidden accept="image/*" data-file="${inputId}"></div>`;
 }
 
+
+const HERO_PAGES = [
+  { id: 'about', label: 'Giới thiệu', note: 'Tiêu đề và mô tả cũng chỉnh được ở mục Giới thiệu.' },
+  { id: 'projects', label: 'Dự án' },
+  { id: 'news', label: 'Tin tức' },
+  { id: 'jobs', label: 'Tuyển dụng' },
+  { id: 'contact', label: 'Liên hệ' },
+  { id: 'finance', label: 'Công cụ tài chính' },
+  { id: 'compare', label: 'So sánh dự án' },
+  { id: 'quiz', label: 'AI tư vấn tìm nhà' }
+];
+
+function looksHtml(s) { return /<[a-z][\s\S]*>/i.test(String(s || '')); }
+function plainToHtml(s) {
+  s = String(s || '').replace(/^\uFEFF/, '').replace(/^\s+|\s+$/g, '');
+  if (!s) return '';
+  if (looksHtml(s)) return s;
+  return s.split(/\n{2,}/).map(p => '<p>' + esc(p).replace(/\r?\n/g, '<br>') + '</p>').join('');
+}
+function safeHref(u) {
+  const raw = String(u || '').trim();
+  if (!raw) return '';
+  const lower = raw.toLowerCase();
+  if (lower.indexOf('javascript:') === 0 || lower.indexOf('vbscript:') === 0 || lower.indexOf('data:') === 0) return '';
+  if (/^(https?:|mailto:|tel:)/i.test(raw) || raw.charAt(0) === '#' || raw.charAt(0) === '/') return raw;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(raw)) return raw;
+  return '';
+}
+function safeSrc(u) {
+  const raw = String(u || '').trim();
+  if (!raw) return '';
+  const lower = raw.toLowerCase();
+  if (lower.indexOf('javascript:') === 0 || lower.indexOf('vbscript:') === 0) return '';
+  if (/^https?:\/\//i.test(raw) || raw.charAt(0) === '/' || raw.indexOf('./') === 0 || raw.indexOf('../') === 0) return raw;
+  if (lower.indexOf('data:image/') === 0) return raw;
+  return '';
+}
+function clientClean(html) {
+  const box = document.createElement('div');
+  box.innerHTML = String(html || '');
+  const root = box.querySelector('body') || box;
+  const allowed = { P: 1, H2: 1, H3: 1, H4: 1, STRONG: 1, B: 1, EM: 1, I: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, BLOCKQUOTE: 1, A: 1, IMG: 1, TABLE: 1, THEAD: 1, TBODY: 1, TFOOT: 1, TR: 1, TH: 1, TD: 1, HR: 1 };
+  function walk(node) {
+    if (node.nodeType === 3) return node.nodeValue;
+    if (node.nodeType !== 1) return '';
+    const tag = node.tagName;
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'META' || tag === 'LINK' || tag === 'XML') return '';
+    const inner = Array.prototype.map.call(node.childNodes, walk).join('');
+    if (!allowed[tag]) return inner;
+    if (tag === 'BR') return '<br>';
+    if (tag === 'HR') return '<hr>';
+    if (tag === 'IMG') {
+      const src = safeSrc(node.getAttribute('src'));
+      if (!src) return '';
+      return '<img src="' + esc(src) + '" alt="' + esc(node.getAttribute('alt') || '') + '">';
+    }
+    if (tag === 'A') {
+      const href = safeHref(node.getAttribute('href'));
+      if (!href) return inner;
+      return '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + inner + '</a>';
+    }
+    const t = tag.toLowerCase();
+    let attrs = '';
+    if (tag === 'TH' || tag === 'TD') {
+      ['colspan', 'rowspan'].forEach(a => {
+        const v = node.getAttribute(a);
+        if (v && /^[0-9]{1,2}$/.test(v)) attrs += ' ' + a + '="' + v + '"';
+      });
+    }
+    return '<' + t + attrs + '>' + inner + '</' + t + '>';
+  }
+  return Array.prototype.map.call(root.childNodes, walk).join('');
+}
+function richBlock(id, value, label, hint) {
+  const html = plainToHtml(value || '');
+  return `<div class="fld richfld"><span>${label}</span>${hint ? `<p class="hint">${hint}</p>` : ''}
+    <div class="rich" data-rich="${id}">
+      <div class="rich-bar" role="toolbar" aria-label="Định dạng">
+        <button type="button" data-cmd="bold" title="Đậm"><b>B</b></button>
+        <button type="button" data-cmd="italic" title="Nghiêng"><i>I</i></button>
+        <button type="button" data-cmd="underline" title="Gạch dưới"><u>U</u></button>
+        <span class="sep"></span>
+        <button type="button" data-cmd="formatBlock" data-val="H2" title="Tiêu đề lớn">H2</button>
+        <button type="button" data-cmd="formatBlock" data-val="H3" title="Tiêu đề vừa">H3</button>
+        <button type="button" data-cmd="formatBlock" data-val="H4" title="Tiêu đề nhỏ">H4</button>
+        <button type="button" data-cmd="formatBlock" data-val="P" title="Đoạn văn">Đoạn</button>
+        <span class="sep"></span>
+        <button type="button" data-cmd="insertUnorderedList" title="Danh sách chấm">•</button>
+        <button type="button" data-cmd="insertOrderedList" title="Danh sách số">1.</button>
+        <button type="button" data-cmd="formatBlock" data-val="BLOCKQUOTE" title="Trích dẫn">“ ”</button>
+        <span class="sep"></span>
+        <button type="button" data-cmd="createLink" title="Chèn liên kết">Link</button>
+        <button type="button" data-cmd="insertImage" title="Chèn ảnh">Ảnh</button>
+        <button type="button" data-cmd="insertTable" title="Chèn bảng">Bảng</button>
+        <span class="sep"></span>
+        <button type="button" data-cmd="undo" title="Hoàn tác">↩</button>
+        <button type="button" data-cmd="removeFormat" title="Xóa định dạng">Tx</button>
+      </div>
+      <div class="rich-ed" contenteditable="true" id="${id}Ed" role="textbox" aria-multiline="true">${html}</div>
+      <textarea id="${id}" hidden></textarea>
+    </div>
+  </div>`;
+}
+function syncRich(id) {
+  const ed = document.getElementById(id + 'Ed');
+  const ta = document.getElementById(id);
+  if (ed && ta) ta.value = ed.innerHTML.trim();
+}
+function richVal(id) {
+  syncRich(id);
+  const ta = document.getElementById(id);
+  return ta ? ta.value : '';
+}
+function onRichPaste(e) {
+  e.preventDefault();
+  const cd = e.clipboardData || window.clipboardData;
+  const html = cd && cd.getData('text/html');
+  const text = (cd && cd.getData('text/plain')) || '';
+  const insert = (html && looksHtml(html)) ? (clientClean(html) || plainToHtml(text)) : plainToHtml(text);
+  document.execCommand('insertHTML', false, insert || esc(text));
+}
+async function onRichCmd(e, ed, sync) {
+  const btn = e.target.closest('button[data-cmd]');
+  if (!btn) return;
+  const cmd = btn.dataset.cmd;
+  const val = btn.dataset.val;
+  ed.focus();
+  if (cmd === 'createLink') {
+    const url = prompt('Dán liên kết (https://...)');
+    const href = url && safeHref(url.trim());
+    if (href) document.execCommand('createLink', false, href);
+    sync();
+    return;
+  }
+  if (cmd === 'insertImage') {
+    const url = prompt('Dán liên kết ảnh, hoặc để trống rồi chọn file trên máy:');
+    if (url && url.trim()) {
+      const src = safeSrc(url.trim());
+      if (src) document.execCommand('insertHTML', false, '<img src="' + esc(src) + '" alt="">');
+      sync();
+      return;
+    }
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.onchange = async () => {
+      const file = inp.files && inp.files[0];
+      if (!file) return;
+      try {
+        const u = await uploadOne(file);
+        ed.focus();
+        document.execCommand('insertHTML', false, '<img src="' + esc(u) + '" alt="">');
+        sync();
+        toast('Đã chèn ảnh');
+      } catch (err) { if (!err.auth) toast(err.message); }
+    };
+    inp.click();
+    return;
+  }
+  if (cmd === 'insertTable') {
+    document.execCommand('insertHTML', false, '<table><thead><tr><th>Cột 1</th><th>Cột 2</th></tr></thead><tbody><tr><td></td><td></td></tr><tr><td></td><td></td></tr></tbody></table>');
+    sync();
+    return;
+  }
+  if (cmd === 'formatBlock') document.execCommand('formatBlock', false, val);
+  else document.execCommand(cmd, false, val || null);
+  sync();
+}
+function wireRich(root) {
+  (root || document).querySelectorAll('[data-rich]').forEach(box => {
+    if (box.dataset.wired) return;
+    box.dataset.wired = '1';
+    const id = box.dataset.rich;
+    const ed = box.querySelector('.rich-ed');
+    const ta = document.getElementById(id);
+    const sync = () => { if (ta && ed) ta.value = ed.innerHTML.trim(); };
+    sync();
+    ed.addEventListener('input', sync);
+    ed.addEventListener('blur', sync);
+    ed.addEventListener('paste', onRichPaste);
+    const bar = box.querySelector('.rich-bar');
+    bar.addEventListener('mousedown', ev => { if (ev.target.closest('button')) ev.preventDefault(); });
+    bar.addEventListener('click', ev => onRichCmd(ev, ed, sync));
+  });
+}
+function heroOf(id) {
+  const all = (db.settings && db.settings.heroes) || {};
+  return all[id] || {};
+}
+function heroPanel(s) {
+  const heroes = (s && s.heroes) || {};
+  const about = db.about || {};
+  const cards = HERO_PAGES.map(pg => {
+    const h = heroes[pg.id] || {};
+    const title = pg.id === 'about' ? (h.title || about.title || '') : (h.title || '');
+    const sub = pg.id === 'about' ? (h.subtitle || about.lead || '') : (h.subtitle || '');
+    const image = pg.id === 'about' ? (h.image || about.heroImage || '') : (h.image || '');
+    return `<div class="hero-card">
+      <h4>${esc(pg.label)}</h4>
+      ${pg.note ? `<p class="hint">${pg.note}</p>` : ''}
+      ${fld('Tiêu đề banner', inp('h-' + pg.id + '-title', title))}
+      ${fld('Mô tả dưới tiêu đề (Enter để xuống dòng)', area('h-' + pg.id + '-sub', sub, 3))}
+      ${coverBlock('h-' + pg.id + '-image', image, 'Ảnh nền banner (trống = ảnh mặc định)')}
+    </div>`;
+  }).join('');
+  return `<div id="heroBox" class="panel" style="margin:6px 0 16px">
+    <h3>Banner các trang trong</h3>
+    <p class="hint">Đổi ảnh nền, tiêu đề và mô tả banner đầu trang (Giới thiệu, Dự án, Tin tức, Tuyển dụng, Liên hệ...). Để trống thì website giữ nội dung hiện tại. Nhớ bấm <b>Lưu cài đặt</b>.</p>
+    <div class="hero-list">${cards}</div>
+  </div>`;
+}
+function readHeroes() {
+  const out = {};
+  HERO_PAGES.forEach(pg => {
+    const subEl = document.getElementById('h-' + pg.id + '-sub');
+    out[pg.id] = {
+      title: val('h-' + pg.id + '-title'),
+      subtitle: subEl ? String(subEl.value || '').replace(/^\s+|\s+$/g, '') : '',
+      image: val('h-' + pg.id + '-image')
+    };
+  });
+  return out;
+}
+
 function wireSearch() {
   const q = $('#q');
   if (!q) return;
@@ -499,15 +723,16 @@ function renderNews(id) {
       ${fld('Mã liên kết', inp('f-id', isNew ? '' : n.id))}
       ${fld('Danh mục', `<input id="f-cat" list="catList" value="${esc(n.cat)}"><datalist id="catList">${options(db.newsCats, '')}</datalist>`)}
       ${fld('Ngày hiển thị', inp('f-date', n.date, 'placeholder="28/10/2026"'))}
-      ${fld('Tóm tắt (hiện ở danh sách)', area('f-excerpt', n.excerpt, 3))}
-      ${fld('Nội dung (mỗi đoạn cách một dòng trống)', area('f-body', n.body, 14))}
+      ${fld('Tóm tắt (hiện ở danh sách, Enter để xuống dòng)', area('f-excerpt', n.excerpt, 3))}
+      ${richBlock('f-body', n.body, 'Nội dung bài viết', 'Dán toàn bộ bài, dùng thanh công cụ để tạo tiêu đề, in đậm, danh sách, liên kết và ảnh. Bài cũ dạng thuần văn bản sẽ được chuyển thành đoạn văn khi mở.')}
     </div>
     <div class="panel">${coverBlock('f-image', n.image, 'Ảnh bài viết')}</div>
     <div class="formbar"><button class="btn gold" type="submit">Lưu tin</button><a class="btn ghost" href="#/news">Hủy</a></div>
   </form>`;
+  wireRich(view());
   $('#editForm').onsubmit = async e => {
     e.preventDefault();
-    const item = { id: val('f-id'), title: val('f-title'), cat: val('f-cat') || 'Tin tức', date: val('f-date'), excerpt: $('#f-excerpt').value.trim(), body: $('#f-body').value, image: val('f-image') };
+    const item = { id: val('f-id'), title: val('f-title'), cat: val('f-cat') || 'Tin tức', date: val('f-date'), excerpt: $('#f-excerpt').value.replace(/^\s+|\s+$/g, ''), body: richVal('f-body'), image: val('f-image') };
     if (!item.title) return toast('Nhập tiêu đề');
     const i = ctx.originalId ? db.news.findIndex(x => x.id === ctx.originalId) : -1;
     if (i >= 0) db.news[i] = item; else db.news.unshift(item);
@@ -606,8 +831,12 @@ function renderFaq() {
   };
 }
 
-function catBox(id, values) {
-  return `<div id="${id}" class="catlist">${values.map(v => `<div class="catrow" data-old="${esc(v)}"><input value="${esc(v)}">${rowBtns()}</div>`).join('')}</div>`;
+function catBox(id, values, countOf) {
+  return `<div id="${id}" class="catlist">${values.map(v => {
+    if (!countOf) return `<div class="catrow" data-old="${esc(v)}"><input value="${esc(v)}">${rowBtns()}</div>`;
+    const n = countOf(v);
+    return `<div class="catrow cnt ${n ? '' : 'zero'}" data-old="${esc(v)}" data-n="${n}"><input value="${esc(v)}"><small class="muted">${n ? n + ' dự án' : 'chưa có dự án'}</small>${rowBtns()}</div>`;
+  }).join('')}</div>`;
 }
 
 function renderCategories() {
@@ -616,7 +845,7 @@ function renderCategories() {
   const statuses = db.statuses.map(s => `<div class="catrow two" data-old="${esc(s.id)}"><input data-k="id" value="${esc(s.id)}" aria-label="Mã"><input data-k="label" value="${esc(s.label)}" aria-label="Tên">${rowBtns()}</div>`).join('');
   view().innerHTML = `<form id="editForm"><p class="hint">Đổi tên danh mục sẽ cập nhật các dự án / tin đang dùng tên cũ. Mục đang được dùng sẽ không bị xóa.</p>
     <div class="cols3">
-      <div class="panel"><h3>Khu vực</h3>${catBox('areas', db.areas)}<button type="button" class="btn sm" data-act="cat-add" data-list="areas" style="margin-top:8px">Thêm khu vực</button></div>
+      <div class="panel"><h3>Khu vực</h3><p class="hint">Khu vực chưa có dự án (viền cam) sẽ không hiện ở trang chủ.</p>${catBox('areas', db.areas, a => db.projects.filter(p => p.area === a).length)}<button type="button" class="btn sm" data-act="cat-add" data-list="areas" style="margin-top:8px">Thêm khu vực</button> <button type="button" class="btn sm ghost" data-act="area-prune" style="margin-top:8px">Xóa khu vực chưa có dự án</button></div>
       <div class="panel"><h3>Loại hình</h3>${catBox('types', db.types)}<button type="button" class="btn sm" data-act="cat-add" data-list="types" style="margin-top:8px">Thêm loại hình</button></div>
       <div class="panel"><h3>Chuyên mục tin</h3>${catBox('newsCats', db.newsCats)}<button type="button" class="btn sm" data-act="cat-add" data-list="newsCats" style="margin-top:8px">Thêm chuyên mục</button></div>
     </div>
@@ -691,8 +920,9 @@ function renderAbout() {
   const a = db.about || {};
   view().innerHTML = `<form id="editForm" class="split">
     <div class="panel">
+      <p class="hint">Enter trong các ô mô tả để xuống dòng, website sẽ hiện đúng như vậy.</p>
       ${fld('Tiêu đề', inp('f-title', a.title))}
-      ${fld('Đoạn mở đầu', area('f-lead', a.lead, 3))}
+      ${fld('Đoạn mở đầu (Enter để xuống dòng)', area('f-lead', a.lead, 3))}
       ${fld('Tiêu đề lịch sử', inp('f-ht', a.historyTitle))}
       <span class="fld"><span>Cột mốc</span></span>
       <div id="hist" class="catlist">${(a.history || []).map(histRow).join('')}</div>
@@ -701,7 +931,7 @@ function renderAbout() {
       ${fld('Sứ mệnh', area('f-mission', a.mission, 3))}
       ${fld('Giá trị cốt lõi', area('f-values', a.values, 2))}
     </div>
-    <div class="panel">${coverBlock('f-image', a.image, 'Ảnh minh họa')}</div>
+    <div class="panel">${coverBlock('f-hero', a.heroImage || heroOf('about').image, 'Ảnh nền banner đầu trang')}${coverBlock('f-image', a.image, 'Ảnh minh họa (mục lịch sử)')}</div>
     <div class="formbar"><button class="btn gold" type="submit">Lưu giới thiệu</button><a class="btn ghost" href="/gioi-thieu.html" target="_blank" rel="noopener">Xem trang</a></div>
   </form>`;
   $('#editForm').onsubmit = async e => {
@@ -717,8 +947,10 @@ function renderAbout() {
       vision: $('#f-vision').value.trim(),
       mission: $('#f-mission').value.trim(),
       values: $('#f-values').value.trim(),
-      image: val('f-image')
+      image: val('f-image'),
+      heroImage: val('f-hero')
     };
+    db.settings = Object.assign({}, db.settings, { heroes: Object.assign({}, (db.settings && db.settings.heroes) || {}, { about: Object.assign({}, heroOf('about'), { title: db.about.title, subtitle: db.about.lead, image: db.about.heroImage }) }) });
     try { await saveContent(); } catch (err) { if (!err.auth) toast(err.message); }
   };
 }
@@ -726,6 +958,43 @@ function renderAbout() {
 function statRow(s) {
   s = s || { n: 0, label: '' };
   return `<div class="catrow two"><input data-k="n" inputmode="numeric" value="${esc(s.n)}" placeholder="Số"><input data-k="label" value="${esc(s.label || '')}" placeholder="Nhãn, ví dụ Năm kinh nghiệm">${rowBtns()}</div>`;
+}
+
+const DEFAULT_LOGO_SVG = h => `<svg viewBox="0 0 40 40" width="${h}" height="${h}"><defs><linearGradient id="lg" x1="0" x2="1"><stop stop-color="#E8C877"/><stop offset="1" stop-color="#B8892F"/></linearGradient></defs><path d="M20 3 36 13v24H4V13z" fill="none" stroke="url(#lg)" stroke-width="2.5"/><path d="M13 30V17h3v5l5-5h4l-6 6 6 7h-4l-5-6v6z" fill="url(#lg)"/></svg>`;
+
+function logoPanel(s) {
+  const name = s.logoName == null ? 'Khang Thịnh' : s.logoName;
+  const sub = s.logoSub == null ? 'LAND' : s.logoSub;
+  return `<div id="logoBox" class="panel" style="margin:6px 0 16px">
+    <h3>Logo &amp; nhận diện</h3>
+    <p class="hint">Tải ảnh PNG / SVG / JPG / WebP (nên dùng nền trong suốt). Để trống thì website dùng logo mặc định. Nhớ bấm <b>Lưu cài đặt</b>.</p>
+    <div class="logo-grid">
+      ${coverBlock('f-logo', s.logo, 'Logo chính (đầu trang)')}
+      ${coverBlock('f-logo-foot', s.logoFooter, 'Logo chân trang (nền tối) – trống = dùng logo chính')}
+      ${coverBlock('f-favicon', s.favicon, 'Biểu tượng tab trình duyệt (favicon, ảnh vuông)')}
+    </div>
+    <div class="logo-opts">
+      <label class="chk"><input type="checkbox" id="f-logo-text" ${s.logoText === false ? '' : 'checked'}> Hiện chữ cạnh logo</label>
+      ${fld('Chữ chính', inp('f-logo-name', name))}
+      ${fld('Chữ phụ (nhỏ, màu vàng)', inp('f-logo-sub', sub))}
+      ${fld('Chiều cao logo (px)', inp('f-logo-h', s.logoHeight || 38, 'type="number" min="20" max="120" step="1"'))}
+    </div>
+    <div class="logo-prev"><div class="on-head" id="logoPrevHead"></div><div class="on-foot" id="logoPrevFoot"></div></div>
+    <small class="muted">Xem trước: trái là đầu trang, phải là chân trang.</small>
+    <div style="margin-top:10px"><button type="button" class="btn sm ghost" data-act="logo-reset">Khôi phục logo mặc định</button></div>
+  </div>`;
+}
+
+function paintLogoPrev() {
+  const head = $('#logoPrevHead'), foot = $('#logoPrevFoot');
+  if (!head || !foot) return;
+  const h = Math.min(120, Math.max(20, Number($('#f-logo-h').value) || 38));
+  const logo = $('#f-logo').value.trim(), logoFoot = $('#f-logo-foot').value.trim();
+  const name = $('#f-logo-name').value.trim(), sub = $('#f-logo-sub').value.trim();
+  const text = $('#f-logo-text').checked && (name || sub) ? `<span>${esc(name)}${sub ? `<b>${esc(sub)}</b>` : ''}</span>` : '';
+  const mark = src => src ? `<img src="${esc(src)}" alt="" style="height:${h}px">` : DEFAULT_LOGO_SVG(h);
+  head.innerHTML = `<div class="lgo">${mark(logo)}${text}</div>`;
+  foot.innerHTML = `<div class="lgo">${mark(logoFoot || logo)}${text}</div>`;
 }
 
 function renderSettings() {
@@ -738,6 +1007,8 @@ function renderSettings() {
     ${fld('Địa chỉ', inp('f-addr', s.address))}
     <div class="split">${fld('Giờ làm việc', inp('f-hours', s.hours))}${fld('Zalo (link)', inp('f-zalo', s.zalo))}</div>
     ${fld('Từ khóa bản đồ văn phòng', inp('f-map', s.mapQuery))}
+    ${logoPanel(s)}
+    ${heroPanel(s)}
     <h3>Số liệu trang chủ</h3>
     <div id="stats" class="catlist">${(s.stats || []).map(statRow).join('')}</div>
     <button type="button" class="btn sm" data-act="stat-add" style="margin:8px 0 16px">Thêm số liệu</button>
@@ -750,6 +1021,7 @@ function renderSettings() {
     ${fld('Nhập lại', '<input id="p-again" type="password" autocomplete="new-password" minlength="6">')}
     <button class="btn" type="submit">Đổi mật khẩu</button>
   </form>`;
+  paintLogoPrev();
   $('#editForm').onsubmit = async e => {
     e.preventDefault();
     db.settings = Object.assign({}, db.settings, {
@@ -761,11 +1033,27 @@ function renderSettings() {
       hours: val('f-hours'),
       zalo: val('f-zalo'),
       mapQuery: val('f-map'),
+      logo: val('f-logo'),
+      logoFooter: val('f-logo-foot'),
+      favicon: val('f-favicon'),
+      logoText: $('#f-logo-text').checked,
+      logoName: $('#f-logo-name').value.trim(),
+      logoSub: $('#f-logo-sub').value.trim(),
+      logoHeight: Number(val('f-logo-h')) || 38,
+      heroes: readHeroes(),
       stats: [...document.querySelectorAll('#stats .catrow')].map(row => ({
         n: Number(row.querySelector('[data-k="n"]').value) || 0,
         label: row.querySelector('[data-k="label"]').value.trim()
       })).filter(x => x.label)
     });
+    const ha = (db.settings.heroes || {}).about || {};
+    if (ha.title || ha.subtitle || ha.image) {
+      db.about = Object.assign({}, db.about, {
+        title: ha.title || (db.about && db.about.title) || '',
+        lead: ha.subtitle || (db.about && db.about.lead) || '',
+        heroImage: ha.image || (db.about && db.about.heroImage) || ''
+      });
+    }
     try { await saveContent(); render(); } catch (err) { if (!err.auth) toast(err.message); }
   };
   $('#passForm').onsubmit = async e => {
@@ -925,6 +1213,20 @@ document.body.addEventListener('click', async e => {
     return;
   }
   if (act === 'hist-add') { $('#hist').insertAdjacentHTML('beforeend', histRow({})); return; }
+  if (act === 'logo-reset') {
+    if (!confirm('Khôi phục logo mặc định? (Ảnh đã tải vẫn còn trong Thư viện ảnh)')) return;
+    ['f-logo', 'f-logo-foot', 'f-favicon'].forEach(id => { const i = document.getElementById(id); if (i) { i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); } });
+    $('#f-logo-text').checked = true; $('#f-logo-name').value = 'Khang Thịnh'; $('#f-logo-sub').value = 'LAND'; $('#f-logo-h').value = 38;
+    paintLogoPrev();
+    toast('Đã đặt lại. Bấm Lưu cài đặt để áp dụng.');
+    return;
+  }
+  if (act === 'area-prune') {
+    const rows = [...document.querySelectorAll('#areas .catrow[data-n="0"]')];
+    rows.forEach(r => r.remove());
+    toast(rows.length ? 'Đã bỏ ' + rows.length + ' khu vực trống. Bấm Lưu danh mục để lưu.' : 'Không có khu vực trống.');
+    return;
+  }
   if (act === 'stat-add') { $('#stats').insertAdjacentHTML('beforeend', statRow({ n: 0, label: '' })); return; }
   if (act === 'media-add') { const f = $('#mediaFile'); if (f) f.click(); return; }
   if (act === 'copy') {
@@ -979,6 +1281,7 @@ document.body.addEventListener('click', async e => {
 
 document.body.addEventListener('change', async e => {
   const f = e.target;
+  if (f.id === 'f-logo-text') paintLogoPrev();
   if (f.dataset && f.dataset.file) {
     const file = f.files && f.files[0];
     f.value = '';
@@ -1014,6 +1317,7 @@ document.body.addEventListener('change', async e => {
 
 document.body.addEventListener('input', e => {
   const t = e.target;
+  if (t.closest && t.closest('#logoBox')) setTimeout(paintLogoPrev);
   if (t.dataset && t.dataset.gc != null) ctx.galCats[+t.dataset.gc] = t.value.trim();
   if (t.dataset && t.dataset.gi != null) {
     ctx.gal[+t.dataset.gi] = t.value.trim();

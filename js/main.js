@@ -2,6 +2,37 @@
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const qs = k => new URLSearchParams(location.search).get(k);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function looksHtml(s) { return /<[a-z][\s\S]*>/i.test(String(s || '')); }
+function nl(s) { return esc(s).replace(/\r\n|\r|\n/g, '<br>'); }
+function cssUrl(u) { return String(u || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\)/g, '\\)').replace(/[\n\r]/g, ''); }
+function richHtml(s) {
+  s = String(s || '');
+  if (!s.trim()) return '';
+  if (looksHtml(s)) return s;
+  return esc(s).split(/\n{2,}/).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+}
+function applyPageHero() {
+  const el = $('.phero');
+  if (!el) return;
+  const page = document.body.dataset.page;
+  const heroes = (window.SITE && window.SITE.heroes) || {};
+  const h = heroes[page] || {};
+  let title = h.title, sub = h.subtitle, image = h.image;
+  if (page === 'about' && window.ABOUT) {
+    if (ABOUT.title) title = ABOUT.title;
+    if (ABOUT.lead) sub = ABOUT.lead;
+    if (ABOUT.heroImage) image = ABOUT.heroImage;
+  }
+  const h1 = el.querySelector('h1');
+  const p = el.querySelector('.container > h1 + p, .container > p');
+  if (h1 && title) h1.textContent = title;
+  if (p && sub) p.textContent = sub;
+  if (image) {
+    el.style.backgroundImage = 'linear-gradient(120deg,rgba(6,20,40,.94),rgba(11,31,58,.7)),url("' + cssUrl(image) + '")';
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+  }
+}
 function site() {
   const cfg = window.AI_CONFIG || {};
   const s = Object.assign({
@@ -23,7 +54,18 @@ const NAV = [['index.html', 'Trang chủ'], ['gioi-thieu.html', 'Giới thiệu'
   ...TYPES.map(t => ['du-an.html?type=' + encodeURIComponent(t), t])
 ]],
  ['tu-van-ai.html', 'AI thực chiến', [['tu-van-ai.html', 'AI tư vấn tìm nhà'], ['cong-cu-tai-chinh.html', 'Công cụ tài chính'], ['so-sanh.html', 'So sánh dự án'], ['#chat', 'Chat với trợ lý AI']]], ['tin-tuc.html', 'Tin tức'], ['tuyen-dung.html', 'Tuyển dụng'], ['lien-he.html', 'Liên hệ']];
-const LOGO = `<a href="index.html" class="logo"><svg viewBox="0 0 40 40" width="38" height="38"><defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#E8C877"/><stop offset="1" stop-color="#B8892F"/></linearGradient></defs><path d="M20 3 36 13v24H4V13z" fill="none" stroke="url(#g)" stroke-width="2.5"/><path d="M13 30V17h3v5l5-5h4l-6 6 6 7h-4l-5-6v6z" fill="url(#g)"/></svg><span>Khang Thịnh<b>LAND</b></span></a>`;
+/* Logo: lấy từ Cài đặt trong admin (SITE.logo...), không có thì dùng logo SVG mặc định */
+const LOGO_SVG = h => `<svg viewBox="0 0 40 40" width="${h}" height="${h}"><defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#E8C877"/><stop offset="1" stop-color="#B8892F"/></linearGradient></defs><path d="M20 3 36 13v24H4V13z" fill="none" stroke="url(#g)" stroke-width="2.5"/><path d="M13 30V17h3v5l5-5h4l-6 6 6 7h-4l-5-6v6z" fill="url(#g)"/></svg>`;
+function logoHtml(where) {
+  const s = window.SITE || {};
+  const h = Math.min(120, Math.max(20, Number(s.logoHeight) || 38));
+  const src = where === 'footer' ? (s.logoFooter || s.logo) : s.logo;
+  const name = s.logoName == null ? 'Khang Thịnh' : String(s.logoName), sub = s.logoSub == null ? 'LAND' : String(s.logoSub);
+  const text = s.logoText !== false && (name || sub) ? `<span>${esc(name)}${sub ? `<b>${esc(sub)}</b>` : ''}</span>` : '';
+  const mark = src ? `<img class="logo-img" src="${esc(src)}" alt="${esc(s.siteName || 'Logo')}" style="height:${h}px">` : LOGO_SVG(h);
+  return `<a href="index.html" class="logo">${mark}${text}</a>`;
+}
+const LOGO = logoHtml('header');
 function card(p) {
   return `<article class="pcard reveal"><a href="du-an-chi-tiet.html?id=${p.id}" class="pimg"><img loading="lazy" src="${p.thumb}" alt="${p.name}"><span class="badge s-${p.status}">${STATUS[p.status]}</span>${p.hot ? '<span class="hot">HOT</span>' : ''}</a>
   <div class="pbody"><small>${p.type} · ${p.area}</small><h3><a href="du-an-chi-tiet.html?id=${p.id}">${p.name}</a></h3><p>${p.desc}</p>
@@ -35,9 +77,9 @@ function layout() {
   const page = document.body.dataset.page, cur = location.pathname.split('/').pop() || 'index.html';
   const nav = NAV.map(([h, t, sub]) => `<li class="${sub ? 'has-sub' : ''}"><a href="${h}" class="${cur === h.split('?')[0] ? 'active' : ''}" ${h === '#chat' ? 'data-open-chat' : ''}>${esc(t)}${sub ? ' <i>▾</i>' : ''}</a>${sub ? `<ul class="sub">${sub.map(([sh, st]) => `<li><a href="${sh}" ${sh === '#chat' ? 'data-open-chat' : ''}>${esc(st)}</a></li>`).join('')}</ul>` : ''}</li>`).join('');
   document.body.insertAdjacentHTML('afterbegin', `<div class="topbar"><div class="container"><span>📍 ${esc(s.address)}</span><span><a href="tel:${esc(s.hotlineTel)}">☎ ${esc(s.hotline)}</a> · <a href="mailto:${esc(s.email)}">${esc(s.email)}</a></span></div></div>
-  <header class="header"><div class="container nav-wrap">${LOGO}<nav><ul class="menu">${nav}</ul></nav>
+  <header class="header"><div class="container nav-wrap">${logoHtml('header')}<nav><ul class="menu">${nav}</ul></nav>
   <div class="nav-act"><button class="icon-btn" id="themeBtn" aria-label="Đổi giao diện sáng/tối">◐</button><a href="lien-he.html" class="btn btn-gold sm hide-m">Nhận tư vấn</a><button class="icon-btn burger" aria-label="Menu">☰</button></div></div></header>`);
-  const footer = `<footer class="footer"><div class="container fgrid"><div>${LOGO}<p>Nhà phân phối bất động sản chuyên nghiệp – minh bạch pháp lý, tư vấn bằng dữ liệu & AI.</p><div class="social"><a href="#" aria-label="Facebook">f</a><a href="#" aria-label="YouTube">▶</a><a href="${esc(s.zalo)}" aria-label="Zalo">Z</a></div></div>
+  const footer = `<footer class="footer"><div class="container fgrid"><div>${logoHtml('footer')}<p>Nhà phân phối bất động sản chuyên nghiệp – minh bạch pháp lý, tư vấn bằng dữ liệu & AI.</p><div class="social"><a href="#" aria-label="Facebook">f</a><a href="#" aria-label="YouTube">▶</a><a href="${esc(s.zalo)}" aria-label="Zalo">Z</a></div></div>
   <div><h4>Dự án</h4>${Object.entries(STATUS).map(([id, label]) => `<a href="du-an.html?status=${encodeURIComponent(id)}">${esc(label)}</a>`).join('')}</div>
   <div><h4>AI thực chiến</h4><a href="tu-van-ai.html">AI tư vấn tìm nhà</a><a href="cong-cu-tai-chinh.html">Tính vay & ROI</a><a href="so-sanh.html">So sánh dự án</a></div>
   <div><h4>Liên hệ</h4><a href="tel:${esc(s.hotlineTel)}">Hotline: ${esc(s.hotline)}</a><a href="mailto:${esc(s.email)}">${esc(s.email)}</a><a href="tuyen-dung.html">Tuyển dụng</a><a href="lien-he.html">Văn phòng</a><a href="admin/">Quản trị</a></div></div>
@@ -45,6 +87,7 @@ function layout() {
   <div class="float-cta"><a href="tel:${esc(s.hotlineTel)}" class="fc call" aria-label="Gọi hotline">☎</a><a href="${esc(s.zalo)}" class="fc zalo" target="_blank" rel="noopener" aria-label="Zalo">Zalo</a></div>
   <div class="cmp-bar" id="cmpBar"><span></span><a class="btn btn-gold sm" href="so-sanh.html">So sánh ngay</a><button class="icon-btn" id="cmpClear" aria-label="Xóa">✕</button></div>`;
   document.body.insertAdjacentHTML('beforeend', footer);
+  if (s.favicon) { let ic = document.querySelector('link[rel~="icon"]'); if (!ic) { ic = document.createElement('link'); ic.rel = 'icon'; document.head.appendChild(ic); } ic.href = s.favicon; }
   $('.burger').onclick = () => document.body.classList.toggle('menu-open');
   const th = localStorage.getItem('kt_theme'); if (th) document.documentElement.dataset.theme = th;
   $('#themeBtn').onclick = () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; localStorage.setItem('kt_theme', t); };
@@ -88,14 +131,16 @@ const Pages = {
     const hot = PROJECTS.filter(p => p.hot);
     $('#hotGrid').innerHTML = hot.slice(0, 6).map(card).join('');
     $('#newsGrid').innerHTML = NEWS.slice(0, 3).map(newsCard).join('');
-    $('#areaGrid').innerHTML = AREAS.map((a, i) => { const ps = PROJECTS.filter(p => p.area === a); return `<a class="area reveal" href="du-an.html?area=${encodeURIComponent(a)}"><img loading="lazy" src="${ps[0].thumb}" alt="${a}"><span><b>${a}</b>${ps.length} dự án</span></a>`; }).join('');
+    /* Chỉ hiện khu vực đang có dự án; khu vực trống (dữ liệu cũ) bị bỏ qua để không làm dừng script */
+    const areaGrid = $('#areaGrid');
+    if (areaGrid) areaGrid.innerHTML = AREAS.map(a => ({ a, ps: PROJECTS.filter(p => p.area === a) })).filter(x => x.ps.length).map(({ a, ps }) => { const withImg = ps.find(p => p.thumb || p.image) || {}; const img = withImg.thumb || withImg.image || ''; return `<a class="area reveal" href="du-an.html?area=${encodeURIComponent(a)}">${img ? `<img loading="lazy" src="${esc(img)}" alt="${esc(a)}">` : ''}<span><b>${esc(a)}</b>${ps.length} dự án</span></a>`; }).join('');
     smartSearch($('#heroSearch')); $$('.hint').forEach(h => h.onclick = () => { $('#heroSearch input').value = h.textContent; $('#heroSearch').requestSubmit(); });
     $$('.counter').forEach(c => { const n = +c.dataset.n; let i = 0; const t = setInterval(() => { i += Math.ceil(n / 40); if (i >= n) { i = n; clearInterval(t); } c.textContent = i.toLocaleString('vi-VN'); }, 30); });
   },
   projects() {
     const tabBox = $('.tabs'); if (tabBox) tabBox.innerHTML = `<button data-s="">Tất cả</button>` + Object.entries(STATUS).map(([id, label]) => `<button data-s="${esc(id)}">${esc(label)}</button>`).join('');
     const sel = (id, opts) => $(id).innerHTML += opts.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('');
-    sel('#fArea', AREAS.map(a => [a, a])); sel('#fType', TYPES.map(a => [a, a])); sel('#fStatus', Object.entries(STATUS));
+    sel('#fArea', AREAS.filter(a => a === qs('area') || PROJECTS.some(p => p.area === a)).map(a => [a, a])); sel('#fType', TYPES.map(a => [a, a])); sel('#fStatus', Object.entries(STATUS));
     const st = { area: qs('area') || '', type: qs('type') || '', status: qs('status') || '', price: '', beds: '', sort: 'hot' };
     const q = qs('q'); if (q) { $('#nlq').value = q; Object.assign(st, applyNL(q)); }
     function applyNL(q) { const f = parseQuery(q); $('#nlInfo').innerHTML = Object.keys(f).length ? `🤖 AI hiểu: <b>${describeFilters(f)}</b>` : '🤖 Chưa nhận diện được tiêu chí, hãy thử “căn hộ 2PN dưới 3 tỷ ở Thủ Đức”'; st.nl = f;
@@ -116,7 +161,7 @@ const Pages = {
     render();
   },
   detail() {
-    const p = PROJECTS.find(x => x.id === qs('id')) || PROJECTS[0]; document.title = p.name + ' – Khang Thịnh Land';
+    const p = PROJECTS.find(x => x.id === qs('id')) || PROJECTS[0]; if (!p) return; document.title = p.name + ' – Khang Thịnh Land';
     $('#dHero').style.backgroundImage = `linear-gradient(180deg,rgba(11,31,58,.25),rgba(11,31,58,.92)),url(${p.image})`;
     $('#dHead').innerHTML = `<div class="crumbs"><a href="index.html">Trang chủ</a> / <a href="du-an.html">Dự án</a> / ${p.name}</div><span class="badge s-${p.status}">${STATUS[p.status]}</span><h1>${p.name}</h1><p>${p.desc}</p>
      <div class="kpis"><div><small>Giá từ</small><b>${fmtTy(p.priceFrom)}</b></div><div><small>Loại hình</small><b>${p.type}</b></div><div><small>Khu vực</small><b>${p.area}</b></div><div><small>Bàn giao</small><b>${p.handover}</b></div></div>`;
@@ -138,17 +183,44 @@ const Pages = {
     const lb = $('#lightbox'); $$('.gallery img').forEach(im => im.onclick = () => { lb.querySelector('img').src = im.src; lb.classList.add('open'); }); lb.onclick = () => lb.classList.remove('open');
     $$('.dnav a').forEach(a => a.onclick = e => { e.preventDefault(); const t = $(a.getAttribute('href')); scrollTo({ top: t.offsetTop - 130, behavior: 'smooth' }); });
   },
-  news() { const cats = ['Tất cả', ...new Set(NEWS.map(n => n.cat))], c = qs('cat') || 'Tất cả';
-    $('#cats').innerHTML = cats.map(x => `<a class="${x === c ? 'active' : ''}" href="tin-tuc.html${x === 'Tất cả' ? '' : '?cat=' + encodeURIComponent(x)}">${x}</a>`).join('');
-    $('#newsGrid').innerHTML = NEWS.filter(n => c === 'Tất cả' || n.cat === c).map(newsCard).join(''); },
-  newsDetail() { const n = NEWS.find(x => x.id === qs('id')) || NEWS[0]; document.title = n.title + ' – Khang Thịnh Land';
-    const body = (n.body || '').trim()
-      ? esc(n.body).split(/\n{2,}/).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('')
-      : `<p>${esc(n.excerpt || '')}</p>`;
-    $('#art').innerHTML = `<div class="crumbs"><a href="index.html">Trang chủ</a> / <a href="tin-tuc.html">Tin tức</a> / ${esc(n.cat)}</div><h1>${esc(n.title)}</h1><p class="muted">${esc(n.date)} · ${esc(n.cat)}</p><img class="cover" src="${esc(n.image)}" alt="">
-    <div class="ai-sum"><b>✦ AI tóm tắt</b><ul><li>${esc(n.excerpt || '')}</li></ul></div>${body}`;
-    $('#related').innerHTML = NEWS.filter(x => x.id !== n.id).slice(0, 3).map(n => `<a class="rel" href="tin-tuc-chi-tiet.html?id=${n.id}"><img src="${n.image}" alt=""><span>${n.title}</span></a>`).join(''); },
-  jobs() { $('#jobs').innerHTML = JOBS.map(j => `<a class="job reveal" href="tuyen-dung-chi-tiet.html?id=${j.id}"><div><h3>${j.title}</h3><small>📍 ${j.place} · 👥 ${j.qty} người · ⏳ Hạn ${j.deadline}</small></div><b>${j.salary}</b><span class="btn btn-outline sm">Xem & ứng tuyển</span></a>`).join(''); },
+  news() {
+    const cats = ['Tất cả', ...new Set(NEWS.map(n => n.cat))], c = qs('cat') || 'Tất cả';
+    const list = NEWS.filter(n => c === 'Tất cả' || n.cat === c);
+    const catsEl = $('#cats');
+    if (catsEl) catsEl.innerHTML = cats.map(x => `<a class="${x === c ? 'active' : ''}" href="tin-tuc.html${x === 'Tất cả' ? '' : '?cat=' + encodeURIComponent(x)}">${esc(x)}</a>`).join('');
+    const feat = $('#newsFeatured');
+    const grid = $('#newsGrid');
+    if (feat) {
+      if (list[0]) {
+        const n = list[0];
+        const href = 'tin-tuc-chi-tiet.html?id=' + encodeURIComponent(n.id);
+        feat.innerHTML = `<article class="nfeat reveal"><a class="nfeat-img" href="${href}"><img src="${esc(n.image)}" alt="${esc(n.title)}"></a><div class="nfeat-body"><span class="nfeat-kicker">Tin mới nhất</span><div class="nmeta"><span class="ntag">${esc(n.cat)}</span><time>${esc(n.date)}</time></div><h2><a href="${href}">${esc(n.title)}</a></h2><p class="pre-line">${esc(n.excerpt || '')}</p><a class="btn btn-gold sm" href="${href}">Đọc bài</a></div></article>`;
+      } else feat.innerHTML = '';
+    }
+    const rest = feat ? list.slice(1) : list;
+    if (grid) grid.innerHTML = rest.map(n => newsCard(n)).join('') || '<p class="muted">Chưa có bài trong chuyên mục này.</p>';
+  },
+  newsDetail() {
+    const n = NEWS.find(x => x.id === qs('id')) || NEWS[0];
+    if (!n) return;
+    document.title = n.title + ' – Khang Thịnh Land';
+    const body = (n.body || '').trim() ? richHtml(n.body) : `<p>${esc(n.excerpt || '')}</p>`;
+    const hrefCat = 'tin-tuc.html?cat=' + encodeURIComponent(n.cat);
+    const art = $('#art');
+    if (art) art.innerHTML = `<div class="crumbs"><a href="index.html">Trang chủ</a> / <a href="tin-tuc.html">Tin tức</a> / <a href="${hrefCat}">${esc(n.cat)}</a></div>
+    <div class="nmeta"><span class="ntag">${esc(n.cat)}</span><time>${esc(n.date)}</time></div>
+    <h1>${esc(n.title)}</h1>
+    ${n.excerpt ? `<p class="nlead pre-line">${esc(n.excerpt)}</p>` : ''}
+    ${n.image ? `<img class="cover" src="${esc(n.image)}" alt="${esc(n.title)}">` : ''}
+    ${n.excerpt ? `<div class="ai-sum"><b>✦ AI tóm tắt</b><p class="pre-line">${esc(n.excerpt)}</p></div>` : ''}
+    <div class="cms">${body}</div>`;
+    const related = NEWS.filter(x => x.id !== n.id).sort((a, b) => (a.cat === n.cat ? -1 : 0) - (b.cat === n.cat ? -1 : 0));
+    const relEl = $('#related');
+    if (relEl) relEl.innerHTML = related.slice(0, 4).map(x => `<a class="rel" href="tin-tuc-chi-tiet.html?id=${encodeURIComponent(x.id)}"><img src="${esc(x.image)}" alt=""><span><small>${esc(x.cat)} · ${esc(x.date)}</small>${esc(x.title)}</span></a>`).join('') || '<p class="muted">Chưa có bài liên quan.</p>';
+    const latest = $('#latest');
+    if (latest) latest.innerHTML = NEWS.filter(x => x.id !== n.id).slice(0, 5).map(x => `<a class="rel" href="tin-tuc-chi-tiet.html?id=${encodeURIComponent(x.id)}"><img src="${esc(x.image)}" alt=""><span><small>${esc(x.date)}</small>${esc(x.title)}</span></a>`).join('');
+  },
+    jobs() { $('#jobs').innerHTML = JOBS.map(j => `<a class="job reveal" href="tuyen-dung-chi-tiet.html?id=${j.id}"><div><h3>${j.title}</h3><small>📍 ${j.place} · 👥 ${j.qty} người · ⏳ Hạn ${j.deadline}</small></div><b>${j.salary}</b><span class="btn btn-outline sm">Xem & ứng tuyển</span></a>`).join(''); },
   jobDetail() { const j = JOBS.find(x => x.id === qs('id')) || JOBS[0]; document.title = j.title + ' – Tuyển dụng Khang Thịnh Land';
     const ul = (arr, fallback) => `<ul class="ticks">${((arr && arr.length) ? arr : fallback).map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
     $('#job').innerHTML = `<div class="crumbs"><a href="index.html">Trang chủ</a> / <a href="tuyen-dung.html">Tuyển dụng</a> / ${esc(j.title)}</div><h1>${esc(j.title)}</h1><div class="kpis light"><div><small>Nơi làm việc</small><b>${esc(j.place)}</b></div><div><small>Số lượng</small><b>${esc(j.qty)}</b></div><div><small>Thu nhập</small><b>${esc(j.salary)}</b></div><div><small>Hạn nộp</small><b>${esc(j.deadline)}</b></div></div>
@@ -220,8 +292,11 @@ const Pages = {
     const map = $('#contactMap'); if (map) map.src = 'https://maps.google.com/maps?q=' + encodeURIComponent(s.mapQuery || s.address) + '&z=12&output=embed';
   }
 };
-function newsCard(n) { return `<article class="ncard reveal"><a href="tin-tuc-chi-tiet.html?id=${n.id}"><img loading="lazy" src="${n.image}" alt=""></a><div><small>${n.cat} · ${n.date}</small><h3><a href="tin-tuc-chi-tiet.html?id=${n.id}">${n.title}</a></h3><p>${n.excerpt}</p></div></article>`; }
+function newsCard(n) { const href = 'tin-tuc-chi-tiet.html?id=' + encodeURIComponent(n.id); return `<article class="ncard reveal"><a class="ncard-img" href="${href}"><img loading="lazy" src="${esc(n.image)}" alt="${esc(n.title)}"></a><div class="ncard-body"><div class="nmeta"><span class="ntag">${esc(n.cat)}</span><time>${esc(n.date)}</time></div><h3><a href="${href}">${esc(n.title)}</a></h3><p class="pre-line">${esc(n.excerpt || '')}</p><a class="nmore" href="${href}">Đọc tiếp</a></div></article>`; }
 document.addEventListener('DOMContentLoaded', () => {
-  layout(); const pg = document.body.dataset.page; if (Pages[pg]) Pages[pg]();
-  $$('[data-leadform]').forEach(el => el.innerHTML = leadForm(el.dataset.leadform)); bindLeadForms(); Chat.init(); Cmp.ui(); reveal();
+  layout(); const pg = document.body.dataset.page;
+  /* Lỗi ở một trang không được làm mất form, chat, so sánh... */
+  if (Pages[pg]) { try { Pages[pg](); } catch (err) { console.error('Lỗi hiển thị trang', pg, err); } }
+  try { applyPageHero(); } catch (err) { console.error('Lỗi banner trang', err); }
+  $('[data-leadform]').forEach(el => el.innerHTML = leadForm(el.dataset.leadform)); bindLeadForms(); Chat.init(); Cmp.ui(); reveal();
 });

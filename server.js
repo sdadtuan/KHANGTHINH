@@ -250,6 +250,101 @@ function cleanSections(p, gallery) {
   };
 }
 
+
+const HERO_PAGE_IDS = ['about', 'projects', 'news', 'jobs', 'contact', 'finance', 'compare', 'quiz'];
+
+function looksHtml(s) {
+  return /<[a-z][\s\S]*>/i.test(String(s || ''));
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function safeUrl(u, kind) {
+  const raw = String(u || '').trim();
+  if (!raw) return '';
+  const lower = raw.toLowerCase();
+  if (lower.indexOf('javascript:') === 0 || lower.indexOf('vbscript:') === 0) return '';
+  if (lower.indexOf('data:text/html') === 0) return '';
+  if (kind === 'img') {
+    if (/^https?:\/\//i.test(raw) || raw.charAt(0) === '/' || raw.indexOf('./') === 0 || raw.indexOf('../') === 0) return raw;
+    if (lower.indexOf('data:image/') === 0) return raw;
+    return '';
+  }
+  if (/^(https?:|mailto:|tel:)/i.test(raw) || raw.charAt(0) === '#' || raw.charAt(0) === '/') return raw;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(raw)) return raw;
+  return '';
+}
+
+const ALLOWED_TAGS = {
+  p: [], h2: [], h3: [], h4: [], strong: [], b: [], em: [], i: [], u: [],
+  ul: [], ol: [], li: [], br: [], blockquote: [], hr: [],
+  a: ['href', 'target', 'rel'],
+  img: ['src', 'alt'],
+  table: [], thead: [], tbody: [], tfoot: [], tr: [],
+  th: ['colspan', 'rowspan'], td: ['colspan', 'rowspan']
+};
+
+function sanitizeHtml(input) {
+  let html = String(input || '');
+  if (!html.trim()) return '';
+  html = html.replace(/<!--[\s\S]*?-->/g, '');
+  html = html.replace(/<\s*(script|style|iframe|object|embed|form|input|button|textarea|svg|math|link|meta|base|video|audio|source|noscript)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '');
+  html = html.replace(/<\s*(script|style|iframe|object|embed|form|input|button|textarea|svg|math|link|meta|base|video|audio|source|noscript)\b[^>]*\/?\s*>/gi, '');
+  html = html.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g, function (m, name) {
+    const close = /^\s*<\s*\//.test(m);
+    const tag = name.toLowerCase();
+    if (!Object.prototype.hasOwnProperty.call(ALLOWED_TAGS, tag)) return '';
+    if (close) return '</' + tag + '>';
+    const attrsSrc = m.replace(/^<\/?[a-zA-Z][a-zA-Z0-9]*\b/, '').replace(/\/?\s*>$/, '');
+    let out = '<' + tag;
+    const allowed = ALLOWED_TAGS[tag];
+    const attrRe = /([^\s=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+    let a, seen = {};
+    while ((a = attrRe.exec(attrsSrc))) {
+      const an = a[1].toLowerCase();
+      if (an.charAt(0) === 'on' || an === 'style' || an === 'class' || an.indexOf('xmlns') === 0) continue;
+      if (allowed.indexOf(an) < 0) continue;
+      if (seen[an]) continue;
+      seen[an] = true;
+      let val = a[2] != null ? a[2] : (a[3] != null ? a[3] : (a[4] != null ? a[4] : ''));
+      if (an === 'href') { val = safeUrl(val, 'href'); if (!val) continue; }
+      else if (an === 'src') { val = safeUrl(val, 'img'); if (!val) continue; }
+      else if (an === 'target') { if (val !== '_blank' && val !== '_self') continue; }
+      else if (an === 'rel') { val = 'noopener noreferrer'; }
+      else if (an === 'colspan' || an === 'rowspan') { if (!/^[0-9]{1,2}$/.test(String(val))) continue; }
+      else if (an === 'alt') { val = String(val).slice(0, 200); }
+      out += ' ' + an + '="' + String(val).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '"';
+    }
+    if (tag === 'a' && !seen.href) return '';
+    if (tag === 'a') out += ' rel="noopener noreferrer"';
+    if (tag === 'img' && !/\ssrc="/.test(out)) return '';
+    return out + '>';
+  });
+  return html;
+}
+
+function richOrPlain(v) {
+  const s = String(v == null ? '' : v);
+  if (!s.trim()) return '';
+  return looksHtml(s) ? sanitizeHtml(s) : s;
+}
+
+function normalizeHeroes(raw) {
+  const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const out = {};
+  HERO_PAGE_IDS.forEach(k => {
+    const h = src[k] && typeof src[k] === 'object' ? src[k] : {};
+    out[k] = {
+      title: String(h.title || '').replace(/^\s+|\s+$/g, ''),
+      subtitle: String(h.subtitle || '').replace(/^\s+|\s+$/g, ''),
+      image: String(h.image || '').trim()
+    };
+  });
+  return out;
+}
+
 function normalize(input) {
   const c = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
   const settings = Object.assign({
@@ -277,6 +372,16 @@ function normalize(input) {
   settings.company = String(settings.company || '').trim();
   settings.siteName = String(settings.siteName || '').trim() || 'Khang Thịnh Land';
   settings.mapQuery = String(settings.mapQuery || '').trim() || settings.address;
+  /* Logo & nhận diện: thiếu trường (dữ liệu cũ) => dùng logo SVG mặc định */
+  settings.logo = String(settings.logo || '').trim();
+  settings.logoFooter = String(settings.logoFooter || '').trim();
+  settings.favicon = String(settings.favicon || '').trim();
+  settings.logoText = settings.logoText !== false;
+  settings.logoName = settings.logoName == null ? 'Khang Thịnh' : String(settings.logoName).trim();
+  settings.logoSub = settings.logoSub == null ? 'LAND' : String(settings.logoSub).trim();
+  const logoH = Math.round(Number(settings.logoHeight));
+  settings.logoHeight = logoH >= 20 && logoH <= 120 ? logoH : 38;
+  settings.heroes = normalizeHeroes(settings.heroes);
   settings.stats = (Array.isArray(settings.stats) ? settings.stats : []).slice(0, 8).map(s => ({
     n: Number(s && s.n) || 0,
     label: String((s && s.label) || '').trim()
@@ -352,7 +457,7 @@ function normalize(input) {
     title: String(n.title || '').trim(),
     date: String(n.date || '').trim(),
     excerpt: String(n.excerpt || '').trim(),
-    body: String(n.body || ''),
+    body: richOrPlain(n.body),
     image: String(n.image || '').trim()
   })).filter(n => n.title);
   assignIds(news, 'title');
@@ -394,8 +499,11 @@ function normalize(input) {
     image: String(aboutIn.image || '').trim(),
     vision: String(aboutIn.vision || ''),
     mission: String(aboutIn.mission || ''),
-    values: String(aboutIn.values || '')
+    values: String(aboutIn.values || ''),
+    heroImage: String(aboutIn.heroImage || '')
+      .trim() || (settings.heroes.about && settings.heroes.about.image) || ''
   };
+  if (about.heroImage) settings.heroes.about.image = settings.heroes.about.image || about.heroImage;
 
   return { settings, statuses, areas, types, newsCats, projects, news, jobs, team, faq, about };
 }

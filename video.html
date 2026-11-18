@@ -20,6 +20,10 @@ button,a{font-family:inherit}
 .bot{bottom:0;flex-direction:column;align-items:stretch}
 .back,.ctl{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.1);color:#fff;border-radius:999px;padding:8px 14px;text-decoration:none;cursor:pointer}
 .back:hover,.ctl:hover{background:#C9A24B;color:#0B1F3A}
+.tlogo{pointer-events:auto;display:flex;align-items:center;gap:8px;margin-left:4px;text-decoration:none;color:#fff;font-weight:700;font-size:15px;min-width:0}
+.tlogo img{display:block;width:auto;object-fit:contain}
+.tlogo span{display:flex;flex-direction:column;line-height:1.05}
+.tlogo b{font-size:9px;letter-spacing:.35em;color:#E8C877}
 .title{display:flex;flex-direction:column;min-width:0}
 .title b{font-size:16px}
 .title small{color:#C7D2E4;font-size:12px}
@@ -57,6 +61,7 @@ button,a{font-family:inherit}
     '<div class="top"><a class="back" href="' + tourBack(p) + '">← Dự án</a><div class="title"><b>' + p.name + '</b><small>Video tour nhà mẫu</small></div></div>' +
     '<div class="bot"><div class="cap"><small id="room"> </small><b id="cap"> </b></div><div class="row"><button class="ctl" id="prev" aria-label="Cảnh trước">‹</button><button class="ctl" id="toggle">Tạm dừng</button><button class="ctl" id="next" aria-label="Cảnh sau">›</button><div class="bar" id="bar"><i id="fill"></i></div><span class="time" id="time">0:00</span></div></div></div>';
 
+  applyTourBrand(document.querySelector('.top'));
   const frames = [].slice.call(document.querySelectorAll('.frame'));
   let index = 0, playing = true, acc = 0, last = performance.now(), raf = 0;
   const fmt = ms => { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };

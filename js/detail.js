@@ -74,7 +74,7 @@ Pages.detail2 = function () {
   $('#xHero').innerHTML = `<div class="xh-bg" style="background-image:url(${p.image})"></div><div class="xh-shade"></div>
   <div class="container xh-in"><div class="crumbs"><a href="index.html">Trang chủ</a> / <a href="du-an.html">Dự án</a> / <a href="du-an.html?area=${encodeURIComponent(p.area)}">${p.area}</a> / ${p.name}</div>
    <div class="xh-tags"><span class="badge s-${ST}">${STATUS[ST]}</span>${p.hot ? '<span class="xtag hotx">🔥 Bán chạy</span>' : ''}<span class="xtag">${p.type}</span><span class="xtag">📍 ${p.area}</span></div>
-   <h1>${p.name}</h1><p class="xh-desc">${p.desc}</p>
+   <h1>${p.name}</h1><p class="xh-desc pre-line">${esc(p.desc || "")}</p>
    <div class="xh-price"><small>Giá bán tham khảo</small><b>${fmtTy(p.priceFrom)} – ${fmtTy(p.priceTo)}</b><span>≈ ${Math.round(p.priceFrom * 1000 / unitTypes[0].area)} triệu/m²</span></div>
    <div class="xh-stats">${[['Chủ đầu tư', p.dev], ['Quy mô', p.scale], ['Loại căn', isLand ? 'Đất nền 80–120m²' : p.beds.join(' · ') + ' PN'], ['Bàn giao', p.handover]].map(([a, b]) => `<div><small>${a}</small><b>${b}</b></div>`).join('')}</div>
    <div class="xh-cta"><button class="btn btn-gold" data-modal="Nhận báo giá">Nhận báo giá</button><button class="btn btn-glass" data-modal="Đặt lịch tham quan">${I.cal} Đặt lịch tham quan</button><button class="btn btn-glass" data-modal="Tải brochure">${I.dl} Tải brochure</button></div></div>
@@ -89,7 +89,7 @@ Pages.detail2 = function () {
   const sec = (id, eb, h, body, cls = '') => `<section id="${id}" class="xs reveal ${cls}"><div class="xs-h"><span class="eyebrow">${eb}</span><h2>${h}</h2></div>${body}</section>`;
   const spec = [['🏢', 'Chủ đầu tư', p.dev], ['📐', 'Quy mô', p.scale], ['🌿', 'Mật độ xây dựng', p.density || (isLand ? '55%' : '28%')], ['📜', 'Pháp lý', p.legal || 'QH 1/500 · GPXD · Bảo lãnh NH'], ['🔑', 'Bàn giao', p.handover], ['🏷️', 'Hình thức sở hữu', p.ownership || (p.type === 'Condotel' ? '50 năm' : 'Lâu dài (người Việt)')], ['🏘️', 'Loại hình', p.type], ['🏗️', 'Tổng thầu', p.contractor || 'Tổng thầu xây dựng hạng A'], ['📍', 'Vị trí', p.area]];
   $('#xMain').innerHTML =
-  sec('tong-quan', 'Tổng quan', `Tổng quan ${p.name}`, `<p class="lead-p">${overview}</p>
+  sec('tong-quan', 'Tổng quan', `Tổng quan ${p.name}`, `<p class="lead-p pre-line">${esc(overview)}</p>
    <div class="spec-grid">${spec.map(([i, a, b]) => `<div><span>${i}</span><small>${a}</small><b>${b}</b></div>`).join('')}</div>
    <div class="hl">${highlights.map(([a, b]) => `<div><b>${a}</b><span>${b}</span></div>`).join('')}</div>`) +
   sec('vi-tri', 'Vị trí', 'Vị trí & kết nối vùng', `<div class="loc"><div class="map"><iframe title="Bản đồ ${p.name}" loading="lazy" src="https://maps.google.com/maps?q=${encodeURIComponent(p.address || (p.area + ', Việt Nam'))}&z=12&output=embed"></iframe></div>
@@ -104,7 +104,7 @@ Pages.detail2 = function () {
    <select id="pfDir" aria-label="Lọc hướng"><option value="">Mọi hướng</option>${DIRS.map(d => `<option>${d}</option>`).join('')}</select><label class="pf-chk"><input type="checkbox" id="pfAvail"> Chỉ căn còn trống</label></div>
    <div class="tscroll"><table class="tbl ptbl"><thead><tr>${[['code', 'Mã căn'], ['type', 'Loại'], ['floor', isApt ? 'Tầng' : 'Khu'], ['dir', 'Hướng'], ['area', 'DT (m²)'], ['price', 'Giá (VNĐ)'], ['', 'Trạng thái']].map(([k, t]) => `<th ${k ? `data-sort="${k}" tabindex="0"` : ''}>${t}${k ? ' <i>↕</i>' : ''}</th>`).join('')}</tr></thead><tbody id="ptBody"></tbody></table></div><p class="muted sm">* Giá tham khảo đã gồm VAT, chưa gồm 2% phí bảo trì. <span id="ptCount"></span></p>`) +
   sec('chinh-sach', 'Chính sách', 'Chính sách bán hàng & tiến độ thanh toán', `<div class="pol">${policies.map(([a, b]) => `<div><b>${a}</b><span>${b}</span></div>`).join('')}</div>
-   <ol class="paytl">${pay.map(([a, b], i) => `<li><span>${i + 1}</span><div><b>${a}</b><em>${b}</em></div></li>`).join('')}</ol>${promo ? `<div class="note">${String(promo).startsWith('🎁') ? promo : '🎁 ' + promo}</div>` : ''}`) +
+   <ol class="paytl">${pay.map(([a, b], i) => `<li><span>${i + 1}</span><div><b>${a}</b><em>${b}</em></div></li>`).join('')}</ol>${promo ? `<div class="note pre-line">${esc(String(promo).startsWith('🎁') ? promo : '🎁 ' + promo)}</div>` : ''}`) +
   sec('tien-do', 'Tiến độ', 'Tiến độ xây dựng', `<div class="pg-head"><b>${prog}%</b><div class="progress"><i style="width:${prog}%"></i></div><small>Cập nhật ${p.progressAt || '10/2026'}</small></div>
    <div class="btl">${build.map(([t, d, done, img], i) => `<div class="${done ? 'done' : ''}"><img loading="lazy" src="${img || gAt(i + 3)}" alt="${t}"><small>${d}</small><b>${t}</b><em>${done ? '✓ Hoàn thành' : 'Sắp tới'}</em></div>`).join('')}</div>`) +
   sec('thu-vien', 'Thư viện', 'Hình ảnh, video & tour 360°', `<div class="xtabs" id="galTabs">${['Tất cả', ...galOrder].map((c, i) => `<button class="${i ? '' : 'on'}" data-c="${c}">${c}</button>`).join('')}</div><div class="xgal" id="xGal"></div>
@@ -116,7 +116,7 @@ Pages.detail2 = function () {
   sec('hoi-ai', 'AI thực chiến', '✦ Hỏi AI về dự án này', `<div class="aibox"><p>Trợ lý AI trả lời tức thì về giá, pháp lý, vay vốn, so sánh với dự án tương tự. Chọn một câu hỏi gợi ý hoặc tự đặt câu hỏi:</p>
    <div class="aiq">${[`Giá ${p.name} bao nhiêu?`, `${p.type} ${p.area} dưới ${Math.ceil(p.priceFrom + 1)} tỷ`, 'Pháp lý dự án thế nào?', 'Hỗ trợ vay ngân hàng ra sao?', 'Gặp chuyên viên'].map(q => `<button>${q}</button>`).join('')}</div>
    <form class="aiform"><input placeholder="Hỏi bất kỳ điều gì về ${p.name}..." aria-label="Câu hỏi cho AI"><button class="btn btn-gold">Hỏi AI</button></form></div>`, 'dark') +
-  sec('hoi-dap', 'FAQ', 'Câu hỏi thường gặp', `<div class="acc">${faqs.map(([q, a], i) => `<details ${i ? '' : 'open'}><summary>${q}</summary><p>${a}</p></details>`).join('')}</div>`) +
+  sec('hoi-dap', 'FAQ', 'Câu hỏi thường gặp', `<div class="acc">${faqs.map(([q, a], i) => `<details ${i ? '' : 'open'}><summary>${esc(q)}</summary><p class="pre-line">${esc(a)}</p></details>`).join('')}</div>`) +
   sec('tai-lieu', 'Tài liệu', 'Tài liệu dự án', `<div class="docs">${docs.map(([t, s]) => `<button data-modal="Tải ${t}"><span>${I.dl}</span><div><b>${t}</b><small>${s}</small></div><em>Tải về</em></button>`).join('')}</div>`) +
   sec('tuong-tu', 'Gợi ý', 'Dự án tương tự', `<div class="car-wrap"><button class="car-b prev" aria-label="Trước">‹</button><div class="car" id="car">${rankProjects({ area: p.area, type: p.type, max: p.priceTo * 1.3 }, 8).filter(x => x.p.id !== p.id).map(x => card(x.p)).join('')}</div><button class="car-b next" aria-label="Sau">›</button></div>`);
 

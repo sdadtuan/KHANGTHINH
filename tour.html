@@ -17,6 +17,10 @@ canvas{width:100%;height:100%;display:block}
 .top{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;align-items:center;gap:12px;padding:16px 18px;background:linear-gradient(rgba(6,20,40,.78),transparent);pointer-events:none}
 .top a{pointer-events:auto;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.1);color:#fff;border-radius:999px;padding:8px 14px;text-decoration:none}
 .top a:hover{background:#C9A24B;color:#0B1F3A}
+.tlogo{pointer-events:auto;display:flex;align-items:center;gap:8px;margin-left:4px;text-decoration:none;color:#fff;font-weight:700;font-size:15px;min-width:0}
+.tlogo img{display:block;width:auto;object-fit:contain}
+.tlogo span{display:flex;flex-direction:column;line-height:1.05}
+.tlogo b{font-size:9px;letter-spacing:.35em;color:#E8C877}
 .title{display:flex;flex-direction:column;min-width:0}
 .title b{font-size:16px}
 .title small{color:#E8C877;font-size:12px}
@@ -75,6 +79,7 @@ canvas{width:100%;height:100%;display:block}
     '<div id="pins"></div><div class="rooms" id="rooms"></div><div class="credit">Ảnh cầu 360° CC0 · Poly Haven</div>' +
     '<div class="load" id="load">Đang tải ảnh cầu 360°…</div>';
 
+  applyTourBrand(document.querySelector('.top'));
   const stage = document.getElementById('stage');
   const canvas = document.getElementById('cv');
   const gl = canvas.getContext('webgl', { antialias: false, preserveDrawingBuffer: true });
